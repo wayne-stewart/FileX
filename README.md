@@ -1,8 +1,7 @@
 # FileX
 Tabbed File Browser written in Rust
 
-To try it out, make sure you build in release mode
-cargo run --release
+To try it out, make sure you build in release mode: cargo run --release
 
 Project Goals
 - Learn Rust
