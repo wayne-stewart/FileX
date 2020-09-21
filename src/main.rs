@@ -92,6 +92,7 @@ use self::winapi::um::winuser::{
     WM_DESTROY,
     WM_PAINT,
     WM_SIZE,
+    WM_MOUSEMOVE,
     WM_LBUTTONDOWN,
     WM_LBUTTONUP,
 
@@ -224,10 +225,11 @@ struct Button {
     bounds: Rect,
     hot: bool,
     active: bool,
-    on_click: Option<Button_Click>
+    on_click: Option<Button_Click>,
+    click_count: i32
 }
 
-type Button_Click = fn(&Button) -> ();
+type Button_Click = fn(&mut Button) -> ();
 
 static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
 static mut FONTS : Vec::<fontdue::Font> = Vec::new();
@@ -239,11 +241,10 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     text: None
 };
 
-fn button_on_click(button: &Button) {
+fn button_on_click(button: &mut Button) {
     unsafe {
-        let mut text = button.text.to_owned();
-        text.push_str(" was clicked");
-        APPLICATION_STATE.text = Some(text);
+        button.click_count += 1;
+        APPLICATION_STATE.text = Some(format!("{} was clicked {} times", button.text, button.click_count));
     }
 }
 
@@ -255,12 +256,14 @@ fn main() {
         APPLICATION_STATE.buttons.push(Button {
             text: "Click Me!",
             bounds: Rect { x: 300, y: 300, w: 150, h: 40 },
-            hot: false, active: false, on_click: Some(button_on_click)
+            hot: false, active: false, click_count: 0,
+            on_click: Some(button_on_click)
         });
         APPLICATION_STATE.buttons.push(Button {
             text: "BUY NOW",
             bounds: Rect { x: 500, y: 300, w: 150, h: 40 },
-            hot: false, active: false, on_click: Some(button_on_click)
+            hot: false, active: false, click_count: 0,
+            on_click: Some(button_on_click)
         });
         APPLICATION_STATE.button_style_hot.background_color = Color::DARKER_RED;
         APPLICATION_STATE.button_style_active.background_color = Color::DARK_RED;
@@ -309,8 +312,8 @@ fn create_window(name: &str, title: &str) -> Result<Window, Error> {
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT,
             CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            700,
+            400,
             null_mut(),
             null_mut(),
             hinstance,
@@ -341,6 +344,7 @@ fn handle_message (window: &mut Window) -> bool {
 
 unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     match msg {
+        WM_MOUSEMOVE => handle_wm_mouse_move(h_wnd, msg, w_param, l_param),
         WM_LBUTTONDOWN => handle_wm_button_click(h_wnd, msg, w_param, l_param,),
         WM_LBUTTONUP => handle_wm_button_click(h_wnd, msg, w_param, l_param),
         WM_CREATE => 0,
@@ -354,6 +358,22 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
 unsafe fn update_window(h_wnd: HWND) {
     update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
     InvalidateRect(h_wnd, null_mut(), 0);
+}
+
+unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+    let mouse_x = GET_X_LPARAM(l_param);
+    let mouse_y = GET_Y_LPARAM(l_param);
+    let buttons = &mut APPLICATION_STATE.buttons;
+    let mut should_update_window = false;
+    for button in buttons {
+        let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
+        if button.hot != hit {
+            should_update_window = true;
+            button.hot = hit;
+        }
+    }
+    if should_update_window { update_window(h_wnd); }
+    return 0;
 }
 
 unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
@@ -381,7 +401,7 @@ fn handle_button_up(mut button: &mut Button, hit: bool) {
     button.hot = hit;
     if button.active && hit {
         match button.on_click {
-            Some(method) => method(&button),
+            Some(method) => method(button),
             _ => { }
         }
     }
@@ -480,13 +500,15 @@ fn update_back_buffer(mut buffer: &mut PixelBuffer) {
 
     let buttons = unsafe { &APPLICATION_STATE.buttons };
     let button_style = unsafe { &APPLICATION_STATE.button_style };
+    let button_style_hot = unsafe { &APPLICATION_STATE.button_style_hot };
     let button_style_active = unsafe { &APPLICATION_STATE.button_style_active };
     for button in buttons {
         let left = button.bounds.x;
         let top = button.bounds.y;
         let width = button.bounds.w;
         let height = button.bounds.h;
-        let style = choose(button.active, button_style_active, button_style);
+        let style = choose(button.hot, button_style_hot, button_style);
+        let style = choose(button.active, button_style_active, style);
         fill_rect(&mut buffer, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, style.background_color);
         draw_rect(&mut buffer, left, top, width, height, style.border_width, style.border_color);
         fill_text(&mut buffer, button.text, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, &font, style.font_size, style.text_color, TextAlign::Center);
