@@ -18,7 +18,12 @@ use self::winapi::shared::windef:: {
     HWND,
     // HDC,
     // HBITMAP,
-    RECT
+    RECT,
+    HCURSOR
+};
+
+use self::winapi::shared::ntdef:: {
+    LONG
 };
 
 use self::winapi::um::wingdi::{
@@ -49,11 +54,12 @@ use self::winapi::um::wingdi::{
 use self::winapi::shared::minwindef::{
     UINT,
     // DWORD,
-    //LONG,
     WPARAM,
     LPARAM,
     LRESULT,
 };
+
+//use self::winapi::shared::ntdef::LPCWSTR;
 
 use self::winapi::um::libloaderapi::{
     GetModuleHandleW,
@@ -73,6 +79,7 @@ use self::winapi::um::winuser::{
     CS_VREDRAW,
     CW_USEDEFAULT,
     RegisterClassW,
+    SetClassLongW,
 
     // CreateWindow
     WS_OVERLAPPEDWINDOW,
@@ -92,6 +99,7 @@ use self::winapi::um::winuser::{
     WM_DESTROY,
     WM_PAINT,
     WM_SIZE,
+    WM_SETCURSOR,
     WM_MOUSEMOVE,
     WM_LBUTTONDOWN,
     WM_LBUTTONUP,
@@ -102,9 +110,11 @@ use self::winapi::um::winuser::{
 
     // cursors
     LoadCursorW,
+    SetCursor,
+    GCL_HCURSOR,
     IDC_ARROW,
     // IDC_WAIT,
-    // IDC_HAND,
+    IDC_HAND,
 
     // icons
     LoadIconW,
@@ -225,12 +235,15 @@ struct Button {
     bounds: Rect,
     hot: bool,
     active: bool,
-    on_click: Option<Button_Click>,
+    on_click: Option<ButtonClick>,
     click_count: i32
 }
 
-type Button_Click = fn(&mut Button) -> ();
+type ButtonClick = fn(&mut Button) -> ();
 
+static mut CURSOR_ARROW: HCURSOR = null_mut();
+static mut CURSOR_HAND: HCURSOR = null_mut();
+static mut CURSOR: i32 = 0;
 static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
 static mut FONTS : Vec::<fontdue::Font> = Vec::new();
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
@@ -252,6 +265,8 @@ fn main() {
     let font = include_bytes!("../fonts/OpenSans-Regular.ttf") as &[u8];
     let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
     unsafe {
+        CURSOR_ARROW = LoadCursorW(null_mut(), IDC_ARROW);
+        CURSOR_HAND = LoadCursorW(null_mut(), IDC_HAND);
         FONTS.push(font);
         APPLICATION_STATE.buttons.push(Button {
             text: "Click Me!",
@@ -298,7 +313,7 @@ fn create_window(name: &str, title: &str) -> Result<Window, Error> {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hIcon: LoadIconW(null_mut(), IDI_APPLICATION),
-            hCursor: LoadCursorW(null_mut(), IDC_ARROW),
+            hCursor: null_mut(), //LoadCursorW(null_mut(), IDC_ARROW),
             hbrBackground: null_mut(),
             lpszMenuName: null_mut()
         };
@@ -344,6 +359,13 @@ fn handle_message (window: &mut Window) -> bool {
 
 unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     match msg {
+        WM_SETCURSOR => {
+            match CURSOR {
+                2 => SetCursor(LoadCursorW(null_mut(), IDC_HAND)),
+                _ => SetCursor(LoadCursorW(null_mut(), IDC_ARROW))
+            };
+            0
+        },
         WM_MOUSEMOVE => handle_wm_mouse_move(h_wnd, msg, w_param, l_param),
         WM_LBUTTONDOWN => handle_wm_button_click(h_wnd, msg, w_param, l_param,),
         WM_LBUTTONUP => handle_wm_button_click(h_wnd, msg, w_param, l_param),
@@ -365,12 +387,31 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
     let mouse_y = GET_Y_LPARAM(l_param);
     let buttons = &mut APPLICATION_STATE.buttons;
     let mut should_update_window = false;
+    let mut is_button_hot = false;
     for button in buttons {
         let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
         if button.hot != hit {
             should_update_window = true;
             button.hot = hit;
         }
+        if hit {
+            is_button_hot = true;
+        }
+    }
+
+    // might have to set cursor inside a WM_SETCURSOR message
+    // because this doesn't appear to be working
+    if is_button_hot {
+        if CURSOR != 2 {
+            //SetCursor(LoadCursorW(null_mut(), IDC_HAND));
+            //SetClassLongW(h_wnd, GCL_HCURSOR, CURSOR_HAND as LONG);
+            CURSOR = 2;
+        }
+    }
+    else if CURSOR != 1 {
+        //SetCursor(LoadCursorW(null_mut(), IDC_ARROW));
+        //SetClassLongW(h_wnd, GCL_HCURSOR, CURSOR_ARROW as LONG);
+        CURSOR = 1;
     }
     if should_update_window { update_window(h_wnd); }
     return 0;
