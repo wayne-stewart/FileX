@@ -419,6 +419,7 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
     let is_point_in_client_rect = is_point_in_rect_a(mouse_x, mouse_y, 
         client_rect.left + 2, client_rect.top + 2, client_rect.right - 2, client_rect.bottom - 2);
     let mut is_button_hot = false;
+    let mut is_textbox_hot = false;
     let mut should_update_window = false;
     if is_point_in_client_rect {
         let buttons = &mut APPLICATION_STATE.buttons;
@@ -432,23 +433,34 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
                 is_button_hot = true;
             }
         }
+        let textboxes = &mut APPLICATION_STATE.textboxes;
+        for textbox in textboxes {
+            let hit = is_point_in_rect(mouse_x, mouse_y, textbox.bounds);
+            if textbox.hot != hit {
+                textbox.hot = hit;
+            }
+            if hit {
+                is_textbox_hot = true;
+            }
+        }
     }
 
     // might have to set cursor inside a WM_SETCURSOR message
     // because this doesn't appear to be working
-    match (is_button_hot, is_point_in_client_rect) {
-        (true, true) => match &CURSOR {
+    match (is_button_hot, is_textbox_hot, is_point_in_client_rect) {
+        (true, false, true) => match &CURSOR {
             Cursor::Hand => { },
             _ => CURSOR = Cursor::Hand
         },
-        (true, false) => match &CURSOR {
-            _ => CURSOR = Cursor::NotSet
+        (false, true, true) => match &CURSOR {
+            Cursor::IBeam => { },
+            _ => CURSOR = Cursor::IBeam
         },
-        (false, true) => match &CURSOR {
+        (false, false, true) => match &CURSOR {
             Cursor::Arrow => {  },
             _ => CURSOR = Cursor::Arrow
         },
-        (false, false) => match &CURSOR {
+        _ => match &CURSOR {
             _ => CURSOR = Cursor::NotSet
         }
     }
@@ -573,10 +585,6 @@ fn update_back_buffer(mut buffer: &mut PixelBuffer) {
     fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
 
     let font = unsafe { &FONTS[0] };
-    // let text = unsafe { &APPLICATION_STATE.text };
-    // fill_rect(&mut buffer, 96, 96, 400, 33, Color::LIGHT_RED);
-    // draw_rect(&mut buffer, 96, 94, 400, 35, 2, Color::RED);
-    // fill_text(&mut buffer, text.as_ref().unwrap(), 100, 100, 385, 25, &font, 25.0, Color::RED, TextAlign::Left);
 
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
     let textbox_style = unsafe { &APPLICATION_STATE.textbox_style };
