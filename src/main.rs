@@ -115,6 +115,7 @@ use self::winapi::um::winuser::{
     IDC_ARROW,
     // IDC_WAIT,
     IDC_HAND,
+    IDC_IBEAM,
 
     // icons
     LoadIconW,
@@ -224,10 +225,12 @@ struct Win32PixelBuffer {
 
 struct ApplicationState {
     buttons: Vec::<Button>,
+    textboxes: Vec::<TextBox>,
+    textbox_style: BoxStyle,
     button_style: BoxStyle,
     button_style_hot: BoxStyle,
     button_style_active: BoxStyle,
-    text: Option<std::string::String>
+    //text: Option<std::string::String>
 }
 
 struct Button {
@@ -239,9 +242,18 @@ struct Button {
     click_count: i32
 }
 
+struct TextBox {
+    text: Option<std::string::String>,
+    placeholder: &'static str,
+    bounds: Rect,
+    hot: bool,
+    active: bool
+}
+
 enum Cursor {
     NotSet,
     Arrow,
+    IBeam,
     Hand
 }
 
@@ -249,21 +261,24 @@ type ButtonClick = fn(&mut Button) -> ();
 
 static mut CURSOR_ARROW: HCURSOR = null_mut();
 static mut CURSOR_HAND: HCURSOR = null_mut();
+static mut CURSOR_IBEAM: HCURSOR = null_mut();
 static mut CURSOR: Cursor = Cursor::NotSet;
 static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
 static mut FONTS : Vec::<fontdue::Font> = Vec::new();
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     buttons: vec![],
+    textboxes: vec![],
+    textbox_style: BoxStyle::default(),
     button_style: BoxStyle::default(),
     button_style_hot: BoxStyle::default(),
     button_style_active: BoxStyle::default(),
-    text: None
+    //text: None
 };
 
 fn button_on_click(button: &mut Button) {
     unsafe {
         button.click_count += 1;
-        APPLICATION_STATE.text = Some(format!("{} was clicked {} times", button.text, button.click_count));
+        APPLICATION_STATE.textboxes[0].text = Some(format!("{} was clicked {} times", button.text, button.click_count));
     }
 }
 
@@ -273,6 +288,7 @@ fn main() {
     unsafe {
         CURSOR_ARROW = LoadCursorW(null_mut(), IDC_ARROW);
         CURSOR_HAND = LoadCursorW(null_mut(), IDC_HAND);
+        CURSOR_IBEAM = LoadCursorW(null_mut(), IDC_IBEAM);
         FONTS.push(font);
         APPLICATION_STATE.buttons.push(Button {
             text: "Click Me!",
@@ -286,12 +302,18 @@ fn main() {
             hot: false, active: false, click_count: 0,
             on_click: Some(button_on_click)
         });
+        APPLICATION_STATE.textboxes.push(TextBox {
+            text: Some(String::new()),
+            placeholder: "Username",
+            bounds: Rect { x: 10, y: 10, w: 400, h: 40 },
+            hot: false, active: false
+        });
         APPLICATION_STATE.button_style_hot.background_color = Color::DARKER_RED;
         APPLICATION_STATE.button_style_active.background_color = Color::DARK_RED;
         APPLICATION_STATE.button_style.font_size = 30.0;
         APPLICATION_STATE.button_style_active.font_size = 30.0;
         APPLICATION_STATE.button_style_hot.font_size = 30.0;
-        APPLICATION_STATE.text = Some(String::from_str("Hello, World").unwrap());
+        //APPLICATION_STATE.text = Some(String::from_str("Hello, World").unwrap());
     }
     let mut window = create_window("FileX", "FileX").unwrap();
 
@@ -369,6 +391,7 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
             match &CURSOR {
                 Cursor::Hand => { SetCursor(CURSOR_HAND); 1 },
                 Cursor::Arrow => { SetCursor(CURSOR_ARROW); 1 },
+                Cursor::IBeam => { SetCursor(CURSOR_IBEAM); 1 },
                 Cursor::NotSet => { DefWindowProcW(h_wnd, msg, w_param, l_param) }
             }
         },
@@ -545,20 +568,35 @@ fn update_back_buffer(mut buffer: &mut PixelBuffer) {
     fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
     fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
     fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
-    fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
+    // fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
     fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
     fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
 
     let font = unsafe { &FONTS[0] };
-    let text = unsafe { &APPLICATION_STATE.text };
-    fill_rect(&mut buffer, 96, 96, 400, 33, Color::LIGHT_RED);
-    draw_rect(&mut buffer, 96, 94, 400, 35, 2, Color::RED);
-    fill_text(&mut buffer, text.as_ref().unwrap(), 100, 100, 385, 25, &font, 25.0, Color::RED, TextAlign::Left);
+    // let text = unsafe { &APPLICATION_STATE.text };
+    // fill_rect(&mut buffer, 96, 96, 400, 33, Color::LIGHT_RED);
+    // draw_rect(&mut buffer, 96, 94, 400, 35, 2, Color::RED);
+    // fill_text(&mut buffer, text.as_ref().unwrap(), 100, 100, 385, 25, &font, 25.0, Color::RED, TextAlign::Left);
+
+    let textboxes = unsafe { &APPLICATION_STATE.textboxes };
+    let textbox_style = unsafe { &APPLICATION_STATE.textbox_style };
 
     let buttons = unsafe { &APPLICATION_STATE.buttons };
     let button_style = unsafe { &APPLICATION_STATE.button_style };
     let button_style_hot = unsafe { &APPLICATION_STATE.button_style_hot };
     let button_style_active = unsafe { &APPLICATION_STATE.button_style_active };
+
+    for textbox in textboxes {
+        let left = textbox.bounds.x;
+        let top = textbox.bounds.y;
+        let width = textbox.bounds.w;
+        let height = textbox.bounds.h;
+        let style = textbox_style;
+        fill_rect(&mut buffer, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, style.background_color);
+        draw_rect(&mut buffer, left, top, width, height, style.border_width, style.border_color);
+        fill_text(&mut buffer, textbox.text.as_ref().unwrap(), left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, &font, style.font_size, style.text_color, TextAlign::Left);
+    }
+
     for button in buttons {
         let left = button.bounds.x;
         let top = button.bounds.y;
