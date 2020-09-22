@@ -239,11 +239,17 @@ struct Button {
     click_count: i32
 }
 
+enum Cursor {
+    NotSet,
+    Arrow,
+    Hand
+}
+
 type ButtonClick = fn(&mut Button) -> ();
 
 static mut CURSOR_ARROW: HCURSOR = null_mut();
 static mut CURSOR_HAND: HCURSOR = null_mut();
-static mut CURSOR: i32 = 0;
+static mut CURSOR: Cursor = Cursor::NotSet;
 static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
 static mut FONTS : Vec::<fontdue::Font> = Vec::new();
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
@@ -360,11 +366,11 @@ fn handle_message (window: &mut Window) -> bool {
 unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     match msg {
         WM_SETCURSOR => {
-            match CURSOR {
-                2 => SetCursor(LoadCursorW(null_mut(), IDC_HAND)),
-                _ => SetCursor(LoadCursorW(null_mut(), IDC_ARROW))
-            };
-            0
+            match &CURSOR {
+                Cursor::Hand => { SetCursor(CURSOR_HAND); 1 },
+                Cursor::Arrow => { SetCursor(CURSOR_ARROW); 1 },
+                Cursor::NotSet => { DefWindowProcW(h_wnd, msg, w_param, l_param) }
+            }
         },
         WM_MOUSEMOVE => handle_wm_mouse_move(h_wnd, msg, w_param, l_param),
         WM_LBUTTONDOWN => handle_wm_button_click(h_wnd, msg, w_param, l_param,),
@@ -385,33 +391,43 @@ unsafe fn update_window(h_wnd: HWND) {
 unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
-    let buttons = &mut APPLICATION_STATE.buttons;
-    let mut should_update_window = false;
+    let mut client_rect = mem::MaybeUninit::<RECT>::zeroed().assume_init();
+    GetClientRect(h_wnd, &mut client_rect);
+    let is_point_in_client_rect = is_point_in_rect_a(mouse_x, mouse_y, 
+        client_rect.left + 2, client_rect.top + 2, client_rect.right - 2, client_rect.bottom - 2);
     let mut is_button_hot = false;
-    for button in buttons {
-        let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
-        if button.hot != hit {
-            should_update_window = true;
-            button.hot = hit;
-        }
-        if hit {
-            is_button_hot = true;
+    let mut should_update_window = false;
+    if is_point_in_client_rect {
+        let buttons = &mut APPLICATION_STATE.buttons;
+        for button in buttons {
+            let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
+            if button.hot != hit {
+                should_update_window = true;
+                button.hot = hit;
+            }
+            if hit {
+                is_button_hot = true;
+            }
         }
     }
 
     // might have to set cursor inside a WM_SETCURSOR message
     // because this doesn't appear to be working
-    if is_button_hot {
-        if CURSOR != 2 {
-            //SetCursor(LoadCursorW(null_mut(), IDC_HAND));
-            //SetClassLongW(h_wnd, GCL_HCURSOR, CURSOR_HAND as LONG);
-            CURSOR = 2;
+    match (is_button_hot, is_point_in_client_rect) {
+        (true, true) => match &CURSOR {
+            Cursor::Hand => { },
+            _ => CURSOR = Cursor::Hand
+        },
+        (true, false) => match &CURSOR {
+            _ => CURSOR = Cursor::NotSet
+        },
+        (false, true) => match &CURSOR {
+            Cursor::Arrow => {  },
+            _ => CURSOR = Cursor::Arrow
+        },
+        (false, false) => match &CURSOR {
+            _ => CURSOR = Cursor::NotSet
         }
-    }
-    else if CURSOR != 1 {
-        //SetCursor(LoadCursorW(null_mut(), IDC_ARROW));
-        //SetClassLongW(h_wnd, GCL_HCURSOR, CURSOR_ARROW as LONG);
-        CURSOR = 1;
     }
     if should_update_window { update_window(h_wnd); }
     return 0;
@@ -443,7 +459,7 @@ fn handle_button_up(mut button: &mut Button, hit: bool) {
     if button.active && hit {
         match button.on_click {
             Some(method) => method(button),
-            _ => { }
+            None => { }
         }
     }
     button.active = false;
