@@ -233,6 +233,22 @@ struct ApplicationState {
     //text: Option<std::string::String>
 }
 
+trait Control {
+    fn get_bounds(&self) -> Rect;
+    fn get_hot(&self) -> bool;
+    fn set_hot(&mut self, hit: bool);
+    
+    fn hit_check(&mut self, mouse_x: i32, mouse_y: i32) -> (bool, bool) {
+        let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
+        let mut hot_changed = false;
+        if self.get_hot() != hit {
+            hot_changed = true;
+            self.set_hot(hit);
+        }
+        (hot_changed, hit)
+    }
+}
+
 struct Button {
     text: &'static str,
     bounds: Rect,
@@ -242,12 +258,24 @@ struct Button {
     click_count: i32
 }
 
+impl Control for Button {
+    fn get_bounds(&self) -> Rect { self.bounds }
+    fn get_hot(&self) -> bool { self.hot }
+    fn set_hot(&mut self, hit: bool) { self.hot = hit }
+}
+
 struct TextBox {
     text: Option<std::string::String>,
     placeholder: &'static str,
     bounds: Rect,
     hot: bool,
     active: bool
+}
+
+impl Control for TextBox {
+    fn get_bounds(&self) -> Rect { self.bounds }
+    fn get_hot(&self) -> bool { self.hot }
+    fn set_hot(&mut self, hit: bool) { self.hot = hit }
 }
 
 enum Cursor {
@@ -305,11 +333,12 @@ fn main() {
         APPLICATION_STATE.textboxes.push(TextBox {
             text: Some(String::new()),
             placeholder: "Username",
-            bounds: Rect { x: 10, y: 10, w: 400, h: 40 },
+            bounds: Rect { x: 10, y: 10, w: 500, h: 40 },
             hot: false, active: false
         });
         APPLICATION_STATE.button_style_hot.background_color = Color::DARKER_RED;
         APPLICATION_STATE.button_style_active.background_color = Color::DARK_RED;
+        APPLICATION_STATE.textbox_style.font_size = 30.0;
         APPLICATION_STATE.button_style.font_size = 30.0;
         APPLICATION_STATE.button_style_active.font_size = 30.0;
         APPLICATION_STATE.button_style_hot.font_size = 30.0;
@@ -424,24 +453,15 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
     if is_point_in_client_rect {
         let buttons = &mut APPLICATION_STATE.buttons;
         for button in buttons {
-            let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
-            if button.hot != hit {
-                should_update_window = true;
-                button.hot = hit;
-            }
-            if hit {
-                is_button_hot = true;
-            }
+            let (hot_changed, is_hot) = button.hit_check(mouse_x, mouse_y);
+            if hot_changed { should_update_window = true }
+            if is_hot { is_button_hot = true }
         }
         let textboxes = &mut APPLICATION_STATE.textboxes;
         for textbox in textboxes {
-            let hit = is_point_in_rect(mouse_x, mouse_y, textbox.bounds);
-            if textbox.hot != hit {
-                textbox.hot = hit;
-            }
-            if hit {
-                is_textbox_hot = true;
-            }
+            let (hot_changed, is_hot) = textbox.hit_check(mouse_x, mouse_y);
+            if hot_changed { should_update_window = true }
+            if is_hot { is_textbox_hot = true }
         }
     }
 
@@ -475,8 +495,16 @@ unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_para
     for button in buttons {
         let hit = is_point_in_rect(mouse_x, mouse_y, button.bounds);
         match msg {
-            WM_LBUTTONDOWN => handle_button_down(button, hit),
-            WM_LBUTTONUP => handle_button_up(button, hit),
+            WM_LBUTTONDOWN => handle_button_mouse_down(button, hit),
+            WM_LBUTTONUP => handle_button_mouse_up(button, hit),
+            _ => { }
+        }
+    }
+    let textboxes = &mut APPLICATION_STATE.textboxes;
+    for textbox in textboxes {
+        let hit = is_point_in_rect(mouse_x, mouse_y, textbox.bounds);
+        match msg {
+            WM_LBUTTONDOWN => handle_textbox_mouse_down(textbox, hit),
             _ => { }
         }
     }
@@ -484,12 +512,17 @@ unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_para
     return 0;
 }
 
-fn handle_button_down(mut button: &mut Button, hit: bool) {
+fn handle_textbox_mouse_down(mut textbox: &mut TextBox, hit: bool) {
+    textbox.hot = hit;
+    textbox.active = hit;
+}
+
+fn handle_button_mouse_down(mut button: &mut Button, hit: bool) {
     button.hot = hit;
     button.active = hit;
 }
 
-fn handle_button_up(mut button: &mut Button, hit: bool) {
+fn handle_button_mouse_up(mut button: &mut Button, hit: bool) {
     button.hot = hit;
     if button.active && hit {
         match button.on_click {
