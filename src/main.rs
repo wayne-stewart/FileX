@@ -213,6 +213,24 @@ enum BoxSizeEnum {
     All(BoxSize)
 }
 
+impl BoxSizeEnum {
+    fn get_boxsize(self) -> BoxSize {
+        match self {
+            BoxSizeEnum::Single(x) => {
+                BoxSize {
+                    left: x,
+                    top: x,
+                    right: x,
+                    bottom: x
+                }
+            },
+            BoxSizeEnum::All(boxsize) => {
+                boxsize
+            }
+       }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 struct BoxStyle {
     border_color: Color,
@@ -660,25 +678,8 @@ fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue:
     let width = textbox.bounds.w;
     let height = textbox.bounds.h;
     let style = BoxStyle::default();
-    let mut border_width = BoxSize::default();
-    match style.border_width {
-         BoxSizeEnum::Single(x) => {
-             border_width.left = x;
-             border_width.top = x;
-             border_width.right = x;
-             border_width.bottom = x;
-         },
-         BoxSizeEnum::All(boxsize) => {
-             border_width = boxsize
-         }
-    }
-    fill_rect(&mut buffer, 
-        left + border_width.left, 
-        top + border_width.top, 
-        width - (border_width.left + border_width.right), 
-        height - (border_width.top + border_width.bottom), 
-        style.background_color);
-    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
+    let border_width = style.border_width.get_boxsize();
+    draw_border_box(&mut buffer, &textbox.bounds, &style);
     fill_text(&mut buffer, 
         textbox.text.as_ref().unwrap(), 
         left + border_width.left, 
@@ -705,25 +706,8 @@ fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue::Fo
     let height = button.bounds.h;
     let style = choose(button.hot, BoxStyle::button_hot(), button.style);
     let style = choose(button.active, BoxStyle::button_active(), style);
-    let mut border_width = BoxSize::default();
-    match style.border_width {
-         BoxSizeEnum::Single(x) => {
-             border_width.left = x;
-             border_width.top = x;
-             border_width.right = x;
-             border_width.bottom = x;
-         },
-         BoxSizeEnum::All(boxsize) => {
-             border_width = boxsize
-         }
-    }
-    fill_rect(&mut buffer, 
-        left + border_width.left, 
-        top + border_width.top, 
-        width - (border_width.left + border_width.right), 
-        height - (border_width.top + border_width.bottom), 
-        style.background_color);
-    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
+    let border_width = style.border_width.get_boxsize();
+    draw_border_box(&mut buffer, &button.bounds, &style);
     fill_text(&mut buffer, 
         button.text, 
         left + border_width.left, 
@@ -733,6 +717,21 @@ fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue::Fo
         &font, style.font_size, 
         style.text_color, 
         TextAlign::Center);
+}
+
+fn draw_border_box(mut buffer: &mut PixelBuffer, bounds: &Rect, style: &BoxStyle) {
+    let left = bounds.x;
+    let top = bounds.y;
+    let width = bounds.w;
+    let height = bounds.h;
+    let border_width = style.border_width.get_boxsize();
+    fill_rect(&mut buffer, 
+        left + border_width.left, 
+        top + border_width.top, 
+        width - (border_width.left + border_width.right), 
+        height - (border_width.top + border_width.bottom), 
+        style.background_color);
+    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
 }
 
 fn fill_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: i32, color: Color) {
