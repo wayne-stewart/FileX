@@ -214,6 +214,9 @@ fn create_window(name: &str, title: &str) -> Result<Window, Error> {
 
 unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     match msg {
+        // the wm_setcursor message is called automatically by windows on mouse move so however
+        // the application updates the internal application state, I can set the appropriate
+        // cursor here.
         WM_SETCURSOR => {
             match &crate::APPLICATION_STATE.cursor {
                 Cursor::Hand => { SetCursor(CURSOR_HAND); 1 },
@@ -262,7 +265,7 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
     let mut client_rect = mem::MaybeUninit::<RECT>::zeroed().assume_init();
     GetClientRect(h_wnd, &mut client_rect);
 
-    // checking 2 pixels in here to make sure we don't overwrite the cursor
+    // checking 2 pixels in here to make sure I don't overwrite the cursor
     // handling for the window edges. windows will display the proper resize
     // cursors by itself so I will set our cursor to NotSet. WM_SETCURSOR
     // knows how to handle it to use the default wnd proc
@@ -325,7 +328,7 @@ fn handle_wm_paint(h_wnd: HWND) -> LRESULT {
 }
 
 fn handle_wm_size(h_wnd: HWND) -> LRESULT {
-    // NOTE(wayne) Every time we get the wm_size message we need to reallocate
+    // NOTE(wayne) Every time I get the wm_size message I need to reallocate
     // and render into a new back buffer
     unsafe {
         let mut client_rect = mem::MaybeUninit::<RECT>::zeroed().assume_init();
