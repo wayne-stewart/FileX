@@ -188,23 +188,64 @@ struct Rect {
     h:i32
 }
 
+#[derive(Debug, Copy, Clone)]
+struct BoxSize {
+    left:i32,
+    top:i32,
+    right:i32,
+    bottom:i32
+}
+
+impl BoxSize {
+    fn default() -> BoxSize {
+        BoxSize {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+enum BoxSizeEnum {
+    Single(i32),
+    All(BoxSize)
+}
+
+#[derive(Debug, Copy, Clone)]
 struct BoxStyle {
     border_color: Color,
-    border_width: i32,
+    border_width: BoxSizeEnum,
     background_color: Color,
     text_color: Color,
-    font_size: f32
+    font_size: f32,
 }
 
 impl BoxStyle {
     const fn default() -> BoxStyle {
         BoxStyle {
             border_color: Color::RED,
-            border_width: 2,
+            border_width: BoxSizeEnum::Single(2),
             background_color: Color::LIGHT_RED,
             text_color: Color::RED,
-            font_size: 20.0
+            font_size: 30.0
         }
+    }
+    const fn thick_border() -> BoxStyle {
+        let mut style = BoxStyle::default();
+        style.border_width = BoxSizeEnum::Single(4);
+        style
+    }
+    const fn button_hot() -> BoxStyle {
+        let mut style = BoxStyle::default();
+        style.background_color = Color::DARKER_RED;
+        style
+    }
+    const fn button_active() -> BoxStyle {
+        let mut style = BoxStyle::default();
+        style.background_color = Color::DARK_RED;
+        style
     }
 }
 
@@ -225,19 +266,14 @@ struct Win32PixelBuffer {
 
 struct ApplicationState {
     buttons: Vec::<Button>,
-    textboxes: Vec::<TextBox>,
-    textbox_style: BoxStyle,
-    button_style: BoxStyle,
-    button_style_hot: BoxStyle,
-    button_style_active: BoxStyle,
-    //text: Option<std::string::String>
+    textboxes: Vec::<TextBox>
 }
 
 trait Control {
     fn get_bounds(&self) -> Rect;
     fn get_hot(&self) -> bool;
     fn set_hot(&mut self, hit: bool);
-    
+
     fn hit_check(&mut self, mouse_x: i32, mouse_y: i32) -> (bool, bool) {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         let mut hot_changed = false;
@@ -255,7 +291,8 @@ struct Button {
     hot: bool,
     active: bool,
     on_click: Option<ButtonClick>,
-    click_count: i32
+    click_count: i32,
+    style: BoxStyle
 }
 
 impl Control for Button {
@@ -269,7 +306,8 @@ struct TextBox {
     placeholder: &'static str,
     bounds: Rect,
     hot: bool,
-    active: bool
+    active: bool,
+    cursor_index: i32
 }
 
 impl Control for TextBox {
@@ -295,12 +333,7 @@ static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel
 static mut FONTS : Vec::<fontdue::Font> = Vec::new();
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     buttons: vec![],
-    textboxes: vec![],
-    textbox_style: BoxStyle::default(),
-    button_style: BoxStyle::default(),
-    button_style_hot: BoxStyle::default(),
-    button_style_active: BoxStyle::default(),
-    //text: None
+    textboxes: vec![]
 };
 
 fn button_on_click(button: &mut Button) {
@@ -322,35 +355,24 @@ fn main() {
             text: "Click Me!",
             bounds: Rect { x: 300, y: 300, w: 150, h: 40 },
             hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click)
+            on_click: Some(button_on_click), style: BoxStyle::default()
         });
         APPLICATION_STATE.buttons.push(Button {
             text: "BUY NOW",
             bounds: Rect { x: 500, y: 300, w: 150, h: 40 },
             hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click)
+            on_click: Some(button_on_click), style: BoxStyle::thick_border()
         });
         APPLICATION_STATE.textboxes.push(TextBox {
             text: Some(String::new()),
             placeholder: "Username",
             bounds: Rect { x: 10, y: 10, w: 500, h: 40 },
-            hot: false, active: false
+            hot: false, active: false, cursor_index: 0
         });
-        APPLICATION_STATE.button_style_hot.background_color = Color::DARKER_RED;
-        APPLICATION_STATE.button_style_active.background_color = Color::DARK_RED;
-        APPLICATION_STATE.textbox_style.font_size = 30.0;
-        APPLICATION_STATE.button_style.font_size = 30.0;
-        APPLICATION_STATE.button_style_active.font_size = 30.0;
-        APPLICATION_STATE.button_style_hot.font_size = 30.0;
-        //APPLICATION_STATE.text = Some(String::from_str("Hello, World").unwrap());
     }
     let mut window = create_window("FileX", "FileX").unwrap();
 
-    loop {
-        if !handle_message(&mut window) {
-            break;
-        }
-    }
+    run_message_loop(&mut window);
 }
 
 fn win32_string(value : &str) -> Vec<u16> {
@@ -400,16 +422,18 @@ fn create_window(name: &str, title: &str) -> Result<Window, Error> {
     }
 }
 
-fn handle_message (window: &mut Window) -> bool {
-    unsafe{
-        let mut msg = mem::MaybeUninit::<MSG>::zeroed().assume_init();
-        if GetMessageW(&mut msg, window.handle, 0, 0) > 0 {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-            true
-        }
-        else {
-            false
+fn run_message_loop (window: &mut Window) {
+    unsafe {
+        loop {
+            let mut msg = mem::MaybeUninit::<MSG>::zeroed().assume_init();
+            if GetMessageW(&mut msg, window.handle, 0, 0) > 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+                continue
+            }
+            else {
+                break
+            }
         }
     }
 }
@@ -618,46 +642,98 @@ fn update_back_buffer(mut buffer: &mut PixelBuffer) {
     fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
 
     let font = unsafe { &FONTS[0] };
-
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
-    let textbox_style = unsafe { &APPLICATION_STATE.textbox_style };
-
     let buttons = unsafe { &APPLICATION_STATE.buttons };
-    let button_style = unsafe { &APPLICATION_STATE.button_style };
-    let button_style_hot = unsafe { &APPLICATION_STATE.button_style_hot };
-    let button_style_active = unsafe { &APPLICATION_STATE.button_style_active };
 
     for textbox in textboxes {
-        let left = textbox.bounds.x;
-        let top = textbox.bounds.y;
-        let width = textbox.bounds.w;
-        let height = textbox.bounds.h;
-        let style = textbox_style;
-        fill_rect(&mut buffer, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, style.background_color);
-        draw_rect(&mut buffer, left, top, width, height, style.border_width, style.border_color);
-        fill_text(&mut buffer, textbox.text.as_ref().unwrap(), left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, &font, style.font_size, style.text_color, TextAlign::Left);
+        draw_textbox(buffer, &textbox, &font);
     }
 
     for button in buttons {
-        let left = button.bounds.x;
-        let top = button.bounds.y;
-        let width = button.bounds.w;
-        let height = button.bounds.h;
-        let style = choose(button.hot, button_style_hot, button_style);
-        let style = choose(button.active, button_style_active, style);
-        fill_rect(&mut buffer, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, style.background_color);
-        draw_rect(&mut buffer, left, top, width, height, style.border_width, style.border_color);
-        fill_text(&mut buffer, button.text, left + style.border_width, top + style.border_width, width - style.border_width * 2, height - style.border_width * 2, &font, style.font_size, style.text_color, TextAlign::Center);
+        draw_button(buffer, &button, &font);
     }
 }
 
-// fn draw_textbox(buffer: &mut PixelBuffer) {
+fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font) {
+    let left = textbox.bounds.x;
+    let top = textbox.bounds.y;
+    let width = textbox.bounds.w;
+    let height = textbox.bounds.h;
+    let style = BoxStyle::default();
+    let mut border_width = BoxSize::default();
+    match style.border_width {
+         BoxSizeEnum::Single(x) => {
+             border_width.left = x;
+             border_width.top = x;
+             border_width.right = x;
+             border_width.bottom = x;
+         },
+         BoxSizeEnum::All(boxsize) => {
+             border_width = boxsize
+         }
+    }
+    fill_rect(&mut buffer, 
+        left + border_width.left, 
+        top + border_width.top, 
+        width - (border_width.left + border_width.right), 
+        height - (border_width.top + border_width.bottom), 
+        style.background_color);
+    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
+    fill_text(&mut buffer, 
+        textbox.text.as_ref().unwrap(), 
+        left + border_width.left, 
+        top + border_width.top, 
+        width - (border_width.left + border_width.right), 
+        height - (border_width.top + border_width.bottom), 
+        &font, style.font_size, 
+        style.text_color, 
+        TextAlign::Left);
+    if textbox.active {
+        fill_rect(&mut buffer, 
+            left + border_width.left,
+            top + height - border_width.bottom - 5,
+            10, // width
+            2, // height
+            style.text_color);
+    }
+}
 
-// }
-
-// fn draw_button(buffer: &mut PixelBuffer) {
-
-// }
+fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue::Font) {
+    let left = button.bounds.x;
+    let top = button.bounds.y;
+    let width = button.bounds.w;
+    let height = button.bounds.h;
+    let style = choose(button.hot, BoxStyle::button_hot(), button.style);
+    let style = choose(button.active, BoxStyle::button_active(), style);
+    let mut border_width = BoxSize::default();
+    match style.border_width {
+         BoxSizeEnum::Single(x) => {
+             border_width.left = x;
+             border_width.top = x;
+             border_width.right = x;
+             border_width.bottom = x;
+         },
+         BoxSizeEnum::All(boxsize) => {
+             border_width = boxsize
+         }
+    }
+    fill_rect(&mut buffer, 
+        left + border_width.left, 
+        top + border_width.top, 
+        width - (border_width.left + border_width.right), 
+        height - (border_width.top + border_width.bottom), 
+        style.background_color);
+    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
+    fill_text(&mut buffer, 
+        button.text, 
+        left + border_width.left, 
+        top + border_width.top, 
+        width - (border_width.left + border_width.right), 
+        height - (border_width.top + border_width.bottom), 
+        &font, style.font_size, 
+        style.text_color, 
+        TextAlign::Center);
+}
 
 fn fill_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: i32, color: Color) {
     let right = left + width;
@@ -676,11 +752,11 @@ fn fill_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: 
     }
 }
 
-fn draw_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: i32, line_width: i32, color: Color) {
-    fill_rect(buffer, left, top, width, line_width, color); // top
-    fill_rect(buffer, left + width - line_width, top, line_width, height, color); // right
-    fill_rect(buffer, left, top + height - line_width, width, line_width, color); // bottom
-    fill_rect(buffer, left, top, line_width, height, color); // left
+fn draw_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: i32, line_width: BoxSize, color: Color) {
+    fill_rect(buffer, left, top, width, line_width.top, color); // top
+    fill_rect(buffer, left + width - line_width.right, top, line_width.right, height, color); // right
+    fill_rect(buffer, left, top + height - line_width.bottom, width, line_width.bottom, color); // bottom
+    fill_rect(buffer, left, top, line_width.left, height, color); // left
 }
 
 fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
