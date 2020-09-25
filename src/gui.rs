@@ -137,10 +137,17 @@ impl Color {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum TextAlign {
+pub enum HorizontalAlign {
     Left,
-    Right,
+    //Right,
     Center
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum VerticalAlign {
+    Center,
+    Bottom,
+    Top
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -186,8 +193,8 @@ pub struct BoxStyle {
     pub background_color: Color,
     pub text_color: Color,
     pub font_size: f32,
-    pub vertical_align: TextAlign,
-    pub horizontal_align: TextAlign
+    pub vertical_align: VerticalAlign,
+    pub horizontal_align: HorizontalAlign
 
 }
 
@@ -200,13 +207,13 @@ impl BoxStyle {
             background_color: Color::LIGHT_RED,
             text_color: Color::RED,
             font_size: 30.0,
-            vertical_align: TextAlign::Center,
-            horizontal_align: TextAlign::Left
+            vertical_align: VerticalAlign::Center,
+            horizontal_align: HorizontalAlign::Left
         }
     }
     pub const fn button_default() -> BoxStyle {
         let mut style = BoxStyle::default();
-        style.horizontal_align = TextAlign::Center;
+        style.horizontal_align = HorizontalAlign::Center;
         style
     }
     pub const fn button_default_hot() -> BoxStyle {
@@ -220,7 +227,7 @@ impl BoxStyle {
         style
     }
     pub const fn textbox_default() -> BoxStyle {
-        let mut style = BoxStyle::default();
+        let style = BoxStyle::default();
         style
     }
 }
@@ -313,7 +320,7 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
     let top = textbox.bounds.y;
     let width = textbox.bounds.w;
     let height = textbox.bounds.h;
-    let style = textbox.style;
+    let style = textbox.get_style();
     draw_border_box(&mut buffer, &textbox.bounds, &style);
     fill_text(&mut buffer, 
         textbox.text.as_ref().unwrap(), 
@@ -404,31 +411,40 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
 fn fill_text(buffer: &mut PixelBuffer, text: &str,
     left: i32, top: i32, width: i32, height: i32, 
     font: &fontdue::Font, font_size: f32, color: Color,
-    horizontal_align: TextAlign, vertical_align: TextAlign) {
+    horizontal_align: HorizontalAlign, vertical_align: VerticalAlign) {
 
     let buffer_stride = buffer.width;
-    let cursor_bottom = top + height;
     let max_bottom = std::cmp::min(top + height, buffer.height);
     let max_right = std::cmp::min(left + width, buffer.width);
     let max_top = std::cmp::max(top, 0);
     let max_left = std::cmp::max(left, 0);
-    let p_metrics = font.metrics(('p'), font_size);
-    let base_line_offset = p_metrics.ymin;
+    let (font_height, _, base_line_offset) = measure_string("W", font, font_size);
+    let (_, text_width, _) = measure_string(text, font, font_size);
     let h_align_offset = match horizontal_align {
-        TextAlign::Left => left,
-        TextAlign::Right => left, // I don't need this one yet so I'll wait on the implementation
-        TextAlign::Center => {
-            let mut string_width = 0;
-            for c in text.chars() {
-                string_width += font.metrics(c, font_size).advance_width as i32;
-            }
-            left + (width / 2) - (string_width / 2)
+        HorizontalAlign::Left => 0,
+        //HorizontalAlign::Right => left, // I don't need this one yet so I'll wait on the implementation
+        HorizontalAlign::Center => {
+            (width / 2) - (text_width / 2)
         }
     };
-    let mut cursor_left = h_align_offset;
+    let v_align_offset = match vertical_align {
+        VerticalAlign::Center => {
+            height / 2 - font_height / 2
+        },
+        VerticalAlign::Bottom =>  { 
+            height - font_height
+        },
+        VerticalAlign::Top => {
+            0
+        }
+    };
+    let mut cursor_left = left + h_align_offset;
+    //let cursor_bottom = top + height - v_align_offset + base_line_offset;
+    let cursor_top = top + v_align_offset;
     for c in text.chars() {
         let (font_metrics, font_bitmap) = font.rasterize(c, font_size);
-        let buffer_top = cursor_bottom - (font_metrics.ymin + font_metrics.height as i32) + base_line_offset;
+        //let buffer_top = cursor_bottom - (font_metrics.ymin + font_metrics.height as i32);
+        let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
         let buffer_bottom = buffer_top + font_metrics.height as i32;
         let buffer_left = cursor_left;
         let buffer_right = buffer_left + font_metrics.width as i32;
@@ -450,6 +466,26 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
         }
         cursor_left += font_metrics.advance_width as i32;
     }
+}
+
+/*
+    return a tuple of height, width, baseline
+*/
+fn measure_string(text: &str, font: &fontdue::Font, font_size: f32) -> (i32, i32, i32) {
+    let mut height: i32 = 0;
+    let mut width: i32 = 0;
+    let mut ymin: i32 = 0;
+    for c in text.chars() {
+        let m = font.metrics(c, font_size);
+        if height < m.height as i32 {
+            height = m.height as i32;
+        }
+        width += m.advance_width as i32;
+        if ymin > m.ymin {
+            ymin = m.ymin;
+        }
+    }
+    (height, width, ymin)
 }
 
 pub fn is_point_in_rect_a(x:i32, y:i32, left:i32, top:i32, right:i32, bottom:i32) -> bool {

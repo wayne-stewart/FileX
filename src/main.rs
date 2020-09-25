@@ -32,9 +32,9 @@ fn main() {
     unsafe {
         APPLICATION_STATE.fonts.push(font);
 
-        APPLICATION_STATE.buttons.push(gui::Button {
+        APPLICATION_STATE.buttons.push(Button {
             text: "Click Me!",
-            bounds: gui::Rect { x: 300, y: 300, w: 150, h: 40 },
+            bounds: gui::Rect { x: 300, y: 300, w: 150, h: 50 },
             hot: false, active: false, click_count: 0,
             on_click: Some(button_on_click), 
             style: BoxStyle::button_default(),
@@ -44,7 +44,7 @@ fn main() {
 
         APPLICATION_STATE.buttons.push(Button {
             text: "BUY NOW",
-            bounds: Rect { x: 500, y: 300, w: 150, h: 40 },
+            bounds: Rect { x: 500, y: 300, w: 150, h: 50 },
             hot: false, active: false, click_count: 0,
             on_click: Some(button_on_click),
             style: BoxStyle::button_default(),
@@ -53,9 +53,9 @@ fn main() {
         });
 
         APPLICATION_STATE.textboxes.push(TextBox {
-            text: Some(String::new()),
+            text: Some(String::from("hello, world")),
             placeholder: "Username",
-            bounds: Rect { x: 10, y: 10, w: 500, h: 40 },
+            bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
             hot: false, active: false, cursor_index: 0, 
             style: BoxStyle::textbox_default()
         });
