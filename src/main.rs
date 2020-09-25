@@ -1,5 +1,4 @@
 
-
 mod win32;
 
 
@@ -32,23 +31,33 @@ fn main() {
     let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
     unsafe {
         APPLICATION_STATE.fonts.push(font);
+
         APPLICATION_STATE.buttons.push(gui::Button {
             text: "Click Me!",
             bounds: gui::Rect { x: 300, y: 300, w: 150, h: 40 },
             hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click), style: gui::BoxStyle::default()
+            on_click: Some(button_on_click), 
+            style: BoxStyle::button_default(),
+            style_hot: BoxStyle::button_default_hot(),
+            style_active: BoxStyle::button_default_active()
         });
+
         APPLICATION_STATE.buttons.push(Button {
             text: "BUY NOW",
             bounds: Rect { x: 500, y: 300, w: 150, h: 40 },
             hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click), style: BoxStyle::thick_border()
+            on_click: Some(button_on_click),
+            style: BoxStyle::button_default(),
+            style_hot: BoxStyle::button_default_hot(),
+            style_active: BoxStyle::button_default_active()
         });
+
         APPLICATION_STATE.textboxes.push(TextBox {
             text: Some(String::new()),
             placeholder: "Username",
             bounds: Rect { x: 10, y: 10, w: 500, h: 40 },
-            hot: false, active: false, cursor_index: 0
+            hot: false, active: false, cursor_index: 0, 
+            style: BoxStyle::textbox_default()
         });
     }
 

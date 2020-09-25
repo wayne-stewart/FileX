@@ -6,9 +6,7 @@ extern crate winapi;
 use crate::gui:: {
     PixelBuffer,
     Cursor,
-    is_point_in_rect,
-    is_point_in_rect_a,
-    Control
+    is_point_in_rect_a
 };
 
 use std::ffi::OsStr;
@@ -17,8 +15,6 @@ use std::iter::once;
 use std::mem;
 use std::ptr::null_mut;
 use std::io::Error;
-
-
 
 use self::winapi::ctypes::c_void;
 

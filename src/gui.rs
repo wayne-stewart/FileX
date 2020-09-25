@@ -1,4 +1,4 @@
-
+#![allow(unused_parens)]
 
 pub trait Control {
     fn get_bounds(&self) -> Rect;
@@ -14,6 +14,8 @@ pub trait Control {
         }
         (hot_changed, hit)
     }
+
+    fn get_style<'a>(&'a self) -> &'a BoxStyle;
 }
 
 pub struct Button {
@@ -23,13 +25,27 @@ pub struct Button {
     pub active: bool,
     pub on_click: Option<ButtonClick>,
     pub click_count: i32,
-    pub style: BoxStyle
+    pub style: BoxStyle,
+    pub style_hot: BoxStyle,
+    pub style_active: BoxStyle
 }
 
 impl Control for Button {
     fn get_bounds(&self) -> Rect { self.bounds }
     fn get_hot(&self) -> bool { self.hot }
     fn set_hot(&mut self, hit: bool) { self.hot = hit }
+
+    fn get_style<'a>(&'a self) -> &'a BoxStyle {
+        if self.active {
+            &self.style_active
+        }
+        else if self.hot {
+            &self.style_hot
+        }
+        else {
+            &self.style
+        }
+    }
 }
 
 pub struct TextBox {
@@ -38,7 +54,8 @@ pub struct TextBox {
     pub bounds: Rect,
     pub hot: bool,
     pub active: bool,
-    pub cursor_index: i32
+    pub cursor_index: i32,
+    pub style: BoxStyle
 }
 
 impl TextBox {
@@ -59,6 +76,10 @@ impl Control for TextBox {
     fn get_bounds(&self) -> Rect { self.bounds }
     fn get_hot(&self) -> bool { self.hot }
     fn set_hot(&mut self, hit: bool) { self.hot = hit }
+
+    fn get_style<'a>(&'a self) -> &'a BoxStyle {
+        &self.style
+    }
 }
 
 pub enum Cursor {
@@ -115,6 +136,7 @@ impl Color {
     pub const DARK_RED: Color = Color::from_rgb(200, 0, 0);
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum TextAlign {
     Left,
     Right,
@@ -138,7 +160,7 @@ pub struct BoxSize {
 }
 
 impl BoxSize {
-    pub fn default() -> BoxSize {
+    pub const fn default() -> BoxSize {
         BoxSize {
             left: 0,
             top: 0,
@@ -146,64 +168,59 @@ impl BoxSize {
             bottom: 0
         }
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum BoxSizeEnum {
-    Single(i32),
-    All(BoxSize)
-}
-
-impl BoxSizeEnum {
-    pub fn get_boxsize(self) -> BoxSize {
-        match self {
-            BoxSizeEnum::Single(x) => {
-                BoxSize {
-                    left: x,
-                    top: x,
-                    right: x,
-                    bottom: x
-                }
-            },
-            BoxSizeEnum::All(boxsize) => {
-                boxsize
-            }
-       }
+    pub const fn single(s: i32) -> BoxSize {
+        BoxSize {
+            left: s,
+            top: s,
+            right: s,
+            bottom: s
+        }
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct BoxStyle {
-    border_color: Color,
-    border_width: BoxSizeEnum,
-    background_color: Color,
-    text_color: Color,
-    font_size: f32,
+    pub border_color: Color,
+    pub border_size: BoxSize,
+    pub padding_size: BoxSize,
+    pub background_color: Color,
+    pub text_color: Color,
+    pub font_size: f32,
+    pub vertical_align: TextAlign,
+    pub horizontal_align: TextAlign
+
 }
 
 impl BoxStyle {
     pub const fn default() -> BoxStyle {
         BoxStyle {
             border_color: Color::RED,
-            border_width: BoxSizeEnum::Single(2),
+            border_size: BoxSize::single(2),
+            padding_size: BoxSize::single(2),
             background_color: Color::LIGHT_RED,
             text_color: Color::RED,
-            font_size: 30.0
+            font_size: 30.0,
+            vertical_align: TextAlign::Center,
+            horizontal_align: TextAlign::Left
         }
     }
-    pub const fn thick_border() -> BoxStyle {
+    pub const fn button_default() -> BoxStyle {
         let mut style = BoxStyle::default();
-        style.border_width = BoxSizeEnum::Single(4);
+        style.horizontal_align = TextAlign::Center;
         style
     }
-    pub const fn button_hot() -> BoxStyle {
-        let mut style = BoxStyle::default();
+    pub const fn button_default_hot() -> BoxStyle {
+        let mut style = BoxStyle::button_default();
         style.background_color = Color::DARKER_RED;
         style
     }
-    pub const fn button_active() -> BoxStyle {
-        let mut style = BoxStyle::default();
+    pub const fn button_default_active() -> BoxStyle {
+        let mut style = BoxStyle::button_default();
         style.background_color = Color::DARK_RED;
+        style
+    }
+    pub const fn textbox_default() -> BoxStyle {
+        let mut style = BoxStyle::default();
         style
     }
 }
@@ -296,22 +313,22 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
     let top = textbox.bounds.y;
     let width = textbox.bounds.w;
     let height = textbox.bounds.h;
-    let style = BoxStyle::default();
-    let border_width = style.border_width.get_boxsize();
+    let style = textbox.style;
     draw_border_box(&mut buffer, &textbox.bounds, &style);
     fill_text(&mut buffer, 
         textbox.text.as_ref().unwrap(), 
-        left + border_width.left, 
-        top + border_width.top, 
-        width - (border_width.left + border_width.right), 
-        height - (border_width.top + border_width.bottom), 
+        left + style.border_size.left + style.padding_size.left, 
+        top + style.border_size.top + style.padding_size.top, 
+        width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
+        height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
         style.text_color, 
-        TextAlign::Left);
+        style.horizontal_align,
+        style.vertical_align);
     if textbox.active {
         fill_rect(&mut buffer, 
-            left + border_width.left,
-            top + height - border_width.bottom - 5,
+            left + style.border_size.left + style.padding_size.left,
+            top + height - style.border_size.bottom - style.padding_size.bottom,
             10, // width
             2, // height
             style.text_color);
@@ -323,19 +340,18 @@ pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue
     let top = button.bounds.y;
     let width = button.bounds.w;
     let height = button.bounds.h;
-    let style = choose(button.hot, BoxStyle::button_hot(), button.style);
-    let style = choose(button.active, BoxStyle::button_active(), style);
-    let border_width = style.border_width.get_boxsize();
+    let style = button.get_style();
     draw_border_box(&mut buffer, &button.bounds, &style);
     fill_text(&mut buffer, 
         button.text, 
-        left + border_width.left, 
-        top + border_width.top, 
-        width - (border_width.left + border_width.right), 
-        height - (border_width.top + border_width.bottom), 
+        left + style.border_size.left + style.padding_size.left, 
+        top + style.border_size.top + style.padding_size.top, 
+        width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
+        height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
         style.text_color, 
-        TextAlign::Center);
+        style.horizontal_align,
+        style.vertical_align);
 }
 
 fn draw_border_box(mut buffer: &mut PixelBuffer, bounds: &Rect, style: &BoxStyle) {
@@ -343,14 +359,13 @@ fn draw_border_box(mut buffer: &mut PixelBuffer, bounds: &Rect, style: &BoxStyle
     let top = bounds.y;
     let width = bounds.w;
     let height = bounds.h;
-    let border_width = style.border_width.get_boxsize();
     fill_rect(&mut buffer, 
-        left + border_width.left, 
-        top + border_width.top, 
-        width - (border_width.left + border_width.right), 
-        height - (border_width.top + border_width.bottom), 
+        left + style.border_size.left, 
+        top + style.border_size.top, 
+        width - style.border_size.left - style.border_size.right, 
+        height - style.border_size.top - style.border_size.bottom, 
         style.background_color);
-    draw_rect(&mut buffer, left, top, width, height, border_width, style.border_color);
+    draw_rect(&mut buffer, left, top, width, height, style.border_size, style.border_color);
 }
 
 pub fn fill_rect(buffer: &mut PixelBuffer, left: i32, top: i32, width: i32, height: i32, color: Color) {
@@ -389,7 +404,7 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
 fn fill_text(buffer: &mut PixelBuffer, text: &str,
     left: i32, top: i32, width: i32, height: i32, 
     font: &fontdue::Font, font_size: f32, color: Color,
-    horizontal_align: TextAlign) {
+    horizontal_align: TextAlign, vertical_align: TextAlign) {
 
     let buffer_stride = buffer.width;
     let cursor_bottom = top + height;
@@ -447,10 +462,10 @@ pub fn is_point_in_rect(x: i32, y: i32, bounds: Rect) -> bool {
     is_point_in_rect_a(x,y,bounds.x,bounds.y,right,bottom)
 }
 
-fn choose<T>(cmp: bool, option1: T, option2: T) -> T {
-    match cmp {
-        true => option1,
-        false => option2
-    }
-}
+// fn choose<T>(cmp: bool, option1: T, option2: T) -> T {
+//     match cmp {
+//         true => option1,
+//         false => option2
+//     }
+// }
 
