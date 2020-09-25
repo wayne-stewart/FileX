@@ -418,32 +418,14 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
     let max_right = std::cmp::min(left + width, buffer.width);
     let max_top = std::cmp::max(top, 0);
     let max_left = std::cmp::max(left, 0);
-    let (font_height, _, base_line_offset) = measure_string("W", font, font_size);
+    let (font_height, _, _) = measure_string("W", font, font_size);
     let (_, text_width, _) = measure_string(text, font, font_size);
-    let h_align_offset = match horizontal_align {
-        HorizontalAlign::Left => 0,
-        //HorizontalAlign::Right => left, // I don't need this one yet so I'll wait on the implementation
-        HorizontalAlign::Center => {
-            (width / 2) - (text_width / 2)
-        }
-    };
-    let v_align_offset = match vertical_align {
-        VerticalAlign::Center => {
-            height / 2 - font_height / 2
-        },
-        VerticalAlign::Bottom =>  { 
-            height - font_height
-        },
-        VerticalAlign::Top => {
-            0
-        }
-    };
+    let h_align_offset = calculate_h_align_offset(width, text_width, horizontal_align);
+    let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
     let mut cursor_left = left + h_align_offset;
-    //let cursor_bottom = top + height - v_align_offset + base_line_offset;
     let cursor_top = top + v_align_offset;
     for c in text.chars() {
         let (font_metrics, font_bitmap) = font.rasterize(c, font_size);
-        //let buffer_top = cursor_bottom - (font_metrics.ymin + font_metrics.height as i32);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
         let buffer_bottom = buffer_top + font_metrics.height as i32;
         let buffer_left = cursor_left;
@@ -465,6 +447,30 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
             }
         }
         cursor_left += font_metrics.advance_width as i32;
+    }
+}
+
+fn calculate_h_align_offset(container_width: i32, text_width: i32, align: HorizontalAlign) -> i32 {
+    match align {
+        HorizontalAlign::Left => 0,
+        //HorizontalAlign::Right => left, // I don't need this one yet so I'll wait on the implementation
+        HorizontalAlign::Center => {
+            (container_width / 2) - (text_width / 2)
+        }
+    }
+}
+
+fn calculate_v_align_offset(container_height: i32, text_height: i32, align: VerticalAlign) -> i32 {
+    match align {
+        VerticalAlign::Center => {
+            container_height / 2 - text_height / 2
+        },
+        VerticalAlign::Bottom =>  { 
+            container_height - text_height
+        },
+        VerticalAlign::Top => {
+            0
+        }
     }
 }
 
