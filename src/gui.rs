@@ -238,6 +238,60 @@ pub struct PixelBuffer {
     pub height: i32
 }
 
+pub enum KeyboardInputType {
+    Char,
+    Escape,
+    Back,
+    ArrowLeft,
+    ArrowUp,
+    ArrowRight,
+    ArrowDown
+}
+
+pub fn handle_keyboard_keydown(keytype: KeyboardInputType, c: char) {
+    match keytype {
+        KeyboardInputType::Char => handle_key_char(c),
+        KeyboardInputType::Escape => { },
+        KeyboardInputType::Back => { },
+        KeyboardInputType::ArrowLeft => handle_keyboard_arrow_left(),
+        KeyboardInputType::ArrowUp => { },
+        KeyboardInputType::ArrowRight => handle_keyboard_arrow_right(),
+        KeyboardInputType::ArrowDown => { }
+    }
+}
+
+fn handle_keyboard_arrow_left() {
+    let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
+    for textbox in textboxes {
+        if textbox.active {
+            textbox.cursor_index -= 1;
+            break;
+        }
+    }
+}
+
+fn handle_keyboard_arrow_right() {
+    let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
+    for textbox in textboxes {
+        if textbox.active {
+            textbox.cursor_index += 1;
+            break;
+        }
+    }
+}
+
+fn handle_key_char(c: char) {
+    let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
+    for textbox in textboxes {
+        if textbox.active {
+            let mut text = textbox.text.as_ref().unwrap().clone();
+            text.push(c);
+            textbox.text = Some(text);
+            break;
+        }
+    }
+}
+
 pub fn handle_mouse_button_down(mouse_x: i32, mouse_y: i32) {
     let buttons = unsafe { &mut crate::APPLICATION_STATE.buttons };
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
@@ -331,15 +385,9 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
         &font, style.font_size, 
         style.text_color, 
         style.horizontal_align,
-        style.vertical_align);
-    if textbox.active {
-        fill_rect(&mut buffer, 
-            left + style.border_size.left + style.padding_size.left,
-            top + height - style.border_size.bottom - style.padding_size.bottom,
-            10, // width
-            2, // height
-            style.text_color);
-    }
+        style.vertical_align,
+        textbox.cursor_index,
+        textbox.active);
 }
 
 pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue::Font) {
@@ -358,7 +406,8 @@ pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue
         &font, style.font_size, 
         style.text_color, 
         style.horizontal_align,
-        style.vertical_align);
+        style.vertical_align,
+        0, false);
 }
 
 fn draw_border_box(mut buffer: &mut PixelBuffer, bounds: &Rect, style: &BoxStyle) {
@@ -411,7 +460,8 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
 fn fill_text(buffer: &mut PixelBuffer, text: &str,
     left: i32, top: i32, width: i32, height: i32, 
     font: &fontdue::Font, font_size: f32, color: Color,
-    horizontal_align: HorizontalAlign, vertical_align: VerticalAlign) {
+    horizontal_align: HorizontalAlign, vertical_align: VerticalAlign,
+    cursor_index: i32, draw_cursor: bool) {
 
     let buffer_stride = buffer.width;
     let max_bottom = std::cmp::min(top + height, buffer.height);
@@ -424,6 +474,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
     let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
     let mut cursor_left = left + h_align_offset;
     let cursor_top = top + v_align_offset;
+    let mut text_char_index = 0;
     for c in text.chars() {
         let (font_metrics, font_bitmap) = font.rasterize(c, font_size);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
@@ -446,7 +497,16 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
                 font_index += 1;
             }
         }
+        if cursor_index == text_char_index as i32 && draw_cursor {
+            fill_rect(buffer, 
+                cursor_left,
+                cursor_top + font_height + 1,
+                font_metrics.advance_width as i32, // width
+                2, // height
+                color);
+        }
         cursor_left += font_metrics.advance_width as i32;
+        text_char_index += 1;
     }
 }
 

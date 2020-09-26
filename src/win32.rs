@@ -107,6 +107,16 @@ use self::winapi::um::winuser::{
     WM_MOUSEMOVE,
     WM_LBUTTONDOWN,
     WM_LBUTTONUP,
+    WM_KEYDOWN,
+    WM_CHAR,
+
+    // virtual key codes
+    VK_ESCAPE,
+    VK_BACK,
+    VK_RIGHT,
+    VK_LEFT,
+    VK_UP,
+    VK_DOWN,
 
     // Message Box
     // MB_OK, 
@@ -224,6 +234,8 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
         WM_MOUSEMOVE => handle_wm_mouse_move(h_wnd, msg, w_param, l_param),
         WM_LBUTTONDOWN => handle_wm_button_click(h_wnd, msg, w_param, l_param,),
         WM_LBUTTONUP => handle_wm_button_click(h_wnd, msg, w_param, l_param),
+        WM_KEYDOWN => handle_wm_keydown(h_wnd, msg, w_param, l_param),
+        WM_CHAR => handle_wm_char(h_wnd, msg, w_param, l_param),
         WM_CREATE => 0,
         WM_DESTROY => { PostQuitMessage(0); 0 },
         WM_PAINT => handle_wm_paint(h_wnd),
@@ -254,7 +266,26 @@ fn run_message_loop (window: &mut Window) {
     }
 }
 
-unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPARAM) -> LRESULT {
+    let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
+    crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char, c);
+    update_window(h_wnd);
+    0
+}
+
+unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+    match w_param as i32 {
+        VK_ESCAPE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Escape, ' '); 0 },
+        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back, ' '); 0 },
+        VK_LEFT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft, ' '); update_window(h_wnd); 0 },
+        VK_UP => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp, ' '); 0 },
+        VK_RIGHT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight, ' '); update_window(h_wnd); 0 },
+        VK_DOWN => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown, ' '); 0 },
+        _ => DefWindowProcW(h_wnd, msg, w_param, l_param)
+    }
+}
+
+unsafe fn handle_wm_mouse_move(h_wnd: HWND, _msg: UINT, _w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
 
@@ -287,7 +318,7 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param:
     return 0;
 }
 
-unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
     match msg {
