@@ -70,6 +70,29 @@ impl TextBox {
             }
         }
     }
+
+    pub fn insert_char_at_cursor(&mut self, c: char) {
+
+    }
+
+    pub fn set_cursor_index(&mut self, i: i32) {
+
+    }
+
+    pub fn increment_cursor_index(&mut self) {
+        self.cursor_index += 1;
+        let charcount = self.text.as_ref().unwrap().chars().count() as i32;
+        if self.cursor_index >  charcount {
+            self.cursor_index = charcount;
+        }
+    }
+
+    pub fn decrement_cursor_index(&mut self) {
+        self.cursor_index -= 1;
+        if self.cursor_index < 0 {
+            self.cursor_index = 0;
+        }
+    }
 }
 
 impl Control for TextBox {
@@ -264,7 +287,7 @@ fn handle_keyboard_arrow_left() {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for textbox in textboxes {
         if textbox.active {
-            textbox.cursor_index -= 1;
+            textbox.decrement_cursor_index();
             break;
         }
     }
@@ -274,7 +297,7 @@ fn handle_keyboard_arrow_right() {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for textbox in textboxes {
         if textbox.active {
-            textbox.cursor_index += 1;
+            textbox.increment_cursor_index();
             break;
         }
     }
@@ -475,6 +498,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
     let mut cursor_left = left + h_align_offset;
     let cursor_top = top + v_align_offset;
     let mut text_char_index = 0;
+    let mut cursor_pos = cursor_left;
     for c in text.chars() {
         let (font_metrics, font_bitmap) = font.rasterize(c, font_size);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
@@ -497,16 +521,20 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
                 font_index += 1;
             }
         }
-        if cursor_index == text_char_index as i32 && draw_cursor {
-            fill_rect(buffer, 
-                cursor_left,
-                cursor_top + font_height + 1,
-                font_metrics.advance_width as i32, // width
-                2, // height
-                color);
-        }
         cursor_left += font_metrics.advance_width as i32;
+        if cursor_index > text_char_index as i32 {
+            cursor_pos = cursor_left;
+        }
         text_char_index += 1;
+    }
+
+    if draw_cursor {
+        fill_rect(buffer, 
+            cursor_pos,
+            cursor_top - 2,
+            2, // width
+            font_height + 4, // height
+            color);
     }
 }
 
