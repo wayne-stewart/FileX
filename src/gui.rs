@@ -49,29 +49,30 @@ impl Control for Button {
 }
 
 pub struct TextBox {
-    pub text: Option<std::string::String>,
+    pub text: std::string::String,
     pub placeholder: &'static str,
     pub bounds: Rect,
     pub hot: bool,
     pub active: bool,
-    pub cursor_index: i32,
+    pub cursor_index: i32, // this is a byte offset
     pub style: BoxStyle
 }
 
 impl TextBox {
     pub fn set_text(&mut self, text: &str) {
-        match &mut self.text {
-            None => {
-                self.text = Some(std::string::String::from(text));
-            },
-            Some(string) => {
-                string.clear();
-                string.push_str(text);
-            }
-        }
+        self.text.clear();
+        self.text.push_str(text);
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {
+        
+    }
+
+    pub fn delete_char_at_cursor(&mut self) {
+
+    }
+
+    pub fn delete_char_left_of_cursor(&mut self) {
 
     }
 
@@ -81,9 +82,9 @@ impl TextBox {
 
     pub fn increment_cursor_index(&mut self) {
         self.cursor_index += 1;
-        let charcount = self.text.as_ref().unwrap().chars().count() as i32;
-        if self.cursor_index >  charcount {
-            self.cursor_index = charcount;
+        let bytecount = self.text.len() as i32;
+        if self.cursor_index >  bytecount {
+            self.cursor_index = bytecount;
         }
     }
 
@@ -307,9 +308,7 @@ fn handle_key_char(c: char) {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for textbox in textboxes {
         if textbox.active {
-            let mut text = textbox.text.as_ref().unwrap().clone();
-            text.push(c);
-            textbox.text = Some(text);
+            textbox.text.push(c);
             break;
         }
     }
@@ -400,7 +399,7 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
     let style = textbox.get_style();
     draw_border_box(&mut buffer, &textbox.bounds, &style);
     fill_text(&mut buffer, 
-        textbox.text.as_ref().unwrap(), 
+        &textbox.text, 
         left + style.border_size.left + style.padding_size.left, 
         top + style.border_size.top + style.padding_size.top, 
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 

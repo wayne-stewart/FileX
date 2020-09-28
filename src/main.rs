@@ -5,6 +5,11 @@ mod win32;
 mod gui;
 use self::gui::*;
 
+trait Platform {
+    fn bitblt_back_buffer_to_screen();
+    fn create_timer(milliseconds: u32);
+}
+
 struct ApplicationState {
     cursor: Cursor,
     fonts: Vec::<fontdue::Font>,
@@ -53,7 +58,7 @@ fn main() {
         });
 
         APPLICATION_STATE.textboxes.push(TextBox {
-            text: Some(String::from("hello, world")),
+            text: String::from("hello, world"),
             placeholder: "Username",
             bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
             hot: false, active: false, cursor_index: 0,
