@@ -49,49 +49,64 @@ impl Control for Button {
 }
 
 pub struct TextBox {
-    pub text: std::string::String,
+    pub text: Vec::<char>,
     pub placeholder: &'static str,
     pub bounds: Rect,
     pub hot: bool,
     pub active: bool,
-    pub cursor_index: i32, // this is a byte offset
+    pub cursor_index: usize, // index of char
     pub style: BoxStyle
 }
 
 impl TextBox {
     pub fn set_text(&mut self, text: &str) {
         self.text.clear();
-        self.text.push_str(text);
+        for c in text.chars() {
+            self.text.push(c);
+        }
     }
 
     pub fn insert_char_at_cursor(&mut self, c: char) {
-        
+        if self.cursor_index > self.text.len() {
+            self.cursor_index = self.text.len();
+        }
+        self.text.insert(self.cursor_index, c);
+        self.increment_cursor_index();
     }
 
     pub fn delete_char_at_cursor(&mut self) {
-
+        if !self.text.is_empty() && 
+            self.cursor_index < self.text.len() {
+            println!("before index: {} len: {}", self.cursor_index, self.text.len());
+            self.text.remove(self.cursor_index);
+            println!("after index: {} len: {}", self.cursor_index, self.text.len());
+        }
     }
 
     pub fn delete_char_left_of_cursor(&mut self) {
-
+        self.decrement_cursor_index();
+        self.delete_char_at_cursor();
     }
 
-    pub fn set_cursor_index(&mut self, i: i32) {
-
+    pub fn set_cursor_index(&mut self, i: usize) {
+        self.cursor_index = i;
+        if self.cursor_index > self.text.len() {
+            self.cursor_index = self.text.len();
+        }
     }
 
     pub fn increment_cursor_index(&mut self) {
         self.cursor_index += 1;
-        let bytecount = self.text.len() as i32;
-        if self.cursor_index >  bytecount {
-            self.cursor_index = bytecount;
+        // cursor is allowed to exceed text length by one
+        // indicating that the cursor is at the end of the string
+        if self.cursor_index >  self.text.len() {
+            self.cursor_index = self.text.len();
         }
     }
 
     pub fn decrement_cursor_index(&mut self) {
-        self.cursor_index -= 1;
-        if self.cursor_index < 0 {
-            self.cursor_index = 0;
+        if self.cursor_index > 0 {
+            self.cursor_index -= 1;
         }
     }
 }
@@ -266,6 +281,7 @@ pub enum KeyboardInputType {
     Char,
     Escape,
     Back,
+    Delete,
     ArrowLeft,
     ArrowUp,
     ArrowRight,
@@ -273,45 +289,23 @@ pub enum KeyboardInputType {
 }
 
 pub fn handle_keyboard_keydown(keytype: KeyboardInputType, c: char) {
-    match keytype {
-        KeyboardInputType::Char => handle_key_char(c),
-        KeyboardInputType::Escape => { },
-        KeyboardInputType::Back => { },
-        KeyboardInputType::ArrowLeft => handle_keyboard_arrow_left(),
-        KeyboardInputType::ArrowUp => { },
-        KeyboardInputType::ArrowRight => handle_keyboard_arrow_right(),
-        KeyboardInputType::ArrowDown => { }
-    }
-}
-
-fn handle_keyboard_arrow_left() {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for textbox in textboxes {
         if textbox.active {
-            textbox.decrement_cursor_index();
+            match keytype {
+                KeyboardInputType::Char => textbox.insert_char_at_cursor(c),
+                KeyboardInputType::Escape => { },
+                KeyboardInputType::Back => textbox.delete_char_left_of_cursor(),
+                KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
+                KeyboardInputType::ArrowLeft => textbox.decrement_cursor_index(),
+                KeyboardInputType::ArrowUp => { },
+                KeyboardInputType::ArrowRight => textbox.increment_cursor_index(),
+                KeyboardInputType::ArrowDown => { }
+            }
             break;
         }
     }
-}
 
-fn handle_keyboard_arrow_right() {
-    let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
-    for textbox in textboxes {
-        if textbox.active {
-            textbox.increment_cursor_index();
-            break;
-        }
-    }
-}
-
-fn handle_key_char(c: char) {
-    let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
-    for textbox in textboxes {
-        if textbox.active {
-            textbox.text.push(c);
-            break;
-        }
-    }
 }
 
 pub fn handle_mouse_button_down(mouse_x: i32, mouse_y: i32) {
@@ -420,7 +414,7 @@ pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue
     let style = button.get_style();
     draw_border_box(&mut buffer, &button.bounds, &style);
     fill_text(&mut buffer, 
-        button.text, 
+        &button.text.chars().collect(),
         left + style.border_size.left + style.padding_size.left, 
         top + style.border_size.top + style.padding_size.top, 
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
@@ -479,27 +473,27 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
     return (result / 255) as u8;
 }
 
-fn fill_text(buffer: &mut PixelBuffer, text: &str,
+fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     left: i32, top: i32, width: i32, height: i32, 
     font: &fontdue::Font, font_size: f32, color: Color,
     horizontal_align: HorizontalAlign, vertical_align: VerticalAlign,
-    cursor_index: i32, draw_cursor: bool) {
+    cursor_index: usize, draw_cursor: bool) {
 
     let buffer_stride = buffer.width;
     let max_bottom = std::cmp::min(top + height, buffer.height);
     let max_right = std::cmp::min(left + width, buffer.width);
     let max_top = std::cmp::max(top, 0);
     let max_left = std::cmp::max(left, 0);
-    let (font_height, _, _) = measure_string("W", font, font_size);
-    let (_, text_width, _) = measure_string(text, font, font_size);
+    let (font_height, _, _) = measure_string(&['W'], font, font_size);
+    let (_, text_width, _) = measure_string(&text, font, font_size);
     let h_align_offset = calculate_h_align_offset(width, text_width, horizontal_align);
     let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
     let mut cursor_left = left + h_align_offset;
     let cursor_top = top + v_align_offset;
     let mut text_char_index = 0;
     let mut cursor_pos = cursor_left;
-    for c in text.chars() {
-        let (font_metrics, font_bitmap) = font.rasterize(c, font_size);
+    for c in text {
+        let (font_metrics, font_bitmap) = font.rasterize(*c, font_size);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
         let buffer_bottom = buffer_top + font_metrics.height as i32;
         let buffer_left = cursor_left;
@@ -521,7 +515,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &str,
             }
         }
         cursor_left += font_metrics.advance_width as i32;
-        if cursor_index > text_char_index as i32 {
+        if cursor_index > text_char_index {
             cursor_pos = cursor_left;
         }
         text_char_index += 1;
@@ -564,12 +558,12 @@ fn calculate_v_align_offset(container_height: i32, text_height: i32, align: Vert
 /*
     return a tuple of height, width, baseline
 */
-fn measure_string(text: &str, font: &fontdue::Font, font_size: f32) -> (i32, i32, i32) {
+fn measure_string(text: &[char], font: &fontdue::Font, font_size: f32) -> (i32, i32, i32) {
     let mut height: i32 = 0;
     let mut width: i32 = 0;
     let mut ymin: i32 = 0;
-    for c in text.chars() {
-        let m = font.metrics(c, font_size);
+    for c in text {
+        let m = font.metrics(*c, font_size);
         if height < m.height as i32 {
             height = m.height as i32;
         }

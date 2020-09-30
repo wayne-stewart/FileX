@@ -113,6 +113,7 @@ use self::winapi::um::winuser::{
     // virtual key codes
     VK_ESCAPE,
     VK_BACK,
+    VK_DELETE,
     VK_RIGHT,
     VK_LEFT,
     VK_UP,
@@ -267,16 +268,21 @@ fn run_message_loop (window: &mut Window) {
 }
 
 unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPARAM) -> LRESULT {
+    println!("wm_char");
     let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
-    crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char, c);
-    update_window(h_wnd);
+    if !c.is_control() {
+        crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char, c);
+        update_window(h_wnd);
+    }
     0
 }
 
 unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+    println!("em_keydown");
     match w_param as i32 {
         VK_ESCAPE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Escape, ' '); 0 },
-        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back, ' '); 0 },
+        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back, ' '); update_window(h_wnd); 0 },
+        VK_DELETE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Delete, ' '); update_window(h_wnd); 0 },
         VK_LEFT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft, ' '); update_window(h_wnd); 0 },
         VK_UP => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp, ' '); 0 },
         VK_RIGHT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight, ' '); update_window(h_wnd); 0 },
