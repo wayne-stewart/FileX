@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 #![allow(unused_parens)]
+#![allow(unused_imports)]
 
 extern crate winapi;
 
@@ -20,36 +21,37 @@ use self::winapi::ctypes::c_void;
 
 use self::winapi::shared::windef:: {
     HWND,
-    // HDC,
-    // HBITMAP,
+    HDC,
+    HBITMAP,
     RECT,
     HCURSOR
 };
 
-// use self::winapi::shared::ntdef:: {
-//     LONG
-// };
+use self::winapi::shared::ntdef:: {
+    LONG,
+    NULL
+};
 
 use self::winapi::um::wingdi::{
     // functions
-    // PatBlt,
-    // BitBlt,
+    PatBlt,
+    BitBlt,
     StretchDIBits,
-    // SetDIBitsToDevice,
-    // CreateDIBSection,
-    // DeleteObject,
-    // CreateCompatibleDC,
-    // DeleteDC,
+    SetDIBitsToDevice,
+    CreateDIBSection,
+    DeleteObject,
+    CreateCompatibleDC,
+    DeleteDC,
 
     // structs
-    // BITMAP,
+    BITMAP,
     BITMAPINFO,
     BITMAPINFOHEADER,
     RGBQUAD,
 
     // constants
-    // WHITENESS,
-    // BLACKNESS,
+    WHITENESS,
+    BLACKNESS,
     SRCCOPY,
     DIB_RGB_COLORS,
     BI_RGB,
@@ -57,10 +59,14 @@ use self::winapi::um::wingdi::{
 
 use self::winapi::shared::minwindef::{
     UINT,
-    // DWORD,
+    DWORD,
     WPARAM,
     LPARAM,
     LRESULT,
+    HGLOBAL,
+    LPVOID,
+    TRUE,
+    FALSE
 };
 
 //use self::winapi::shared::ntdef::LPCWSTR;
@@ -74,6 +80,11 @@ use self::winapi::shared::windowsx::{
     GET_Y_LPARAM
 };
 
+use self::winapi::um::winbase::{
+    GlobalLock,
+    GlobalUnlock
+};
+
 use self::winapi::um::winuser::{
 
     // WNDCLASS
@@ -83,7 +94,7 @@ use self::winapi::um::winuser::{
     CS_VREDRAW,
     CW_USEDEFAULT,
     RegisterClassW,
-    //SetClassLongW,
+    SetClassLongW,
 
     // CreateWindow
     WS_OVERLAPPEDWINDOW,
@@ -96,6 +107,7 @@ use self::winapi::um::winuser::{
     GetMessageW,
     DefWindowProcW,
     PostQuitMessage,
+    GetAsyncKeyState,
     MSG,
 
     // Message Constants
@@ -108,6 +120,7 @@ use self::winapi::um::winuser::{
     WM_LBUTTONDOWN,
     WM_LBUTTONUP,
     WM_KEYDOWN,
+    WM_KEYUP,
     WM_CHAR,
 
     // virtual key codes
@@ -118,17 +131,29 @@ use self::winapi::um::winuser::{
     VK_LEFT,
     VK_UP,
     VK_DOWN,
+    VK_SHIFT,
+    VK_CONTROL,
+    VK_MENU, // ALT
+    VK_CAPITAL,
+
+    // clipboard
+    IsClipboardFormatAvailable,
+    OpenClipboard,
+    CloseClipboard,
+    GetClipboardData,
+    SetClipboardData,
+    CF_UNICODETEXT,
 
     // Message Box
-    // MB_OK, 
-    // MessageBoxW,
+    MB_OK, 
+    MessageBoxW,
 
     // cursors
     LoadCursorW,
     SetCursor,
-    //GCL_HCURSOR,
+    GCL_HCURSOR,
     IDC_ARROW,
-    // IDC_WAIT,
+    IDC_WAIT,
     IDC_HAND,
     IDC_IBEAM,
 
@@ -229,13 +254,14 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
                 Cursor::Hand => { SetCursor(CURSOR_HAND); 1 },
                 Cursor::Arrow => { SetCursor(CURSOR_ARROW); 1 },
                 Cursor::IBeam => { SetCursor(CURSOR_IBEAM); 1 },
-                Cursor::NotSet => { DefWindowProcW(h_wnd, msg, w_param, l_param) }
+                Cursor::NotSet => DefWindowProcW(h_wnd, msg, w_param, l_param)
             }
         },
         WM_MOUSEMOVE => handle_wm_mouse_move(h_wnd, msg, w_param, l_param),
         WM_LBUTTONDOWN => handle_wm_button_click(h_wnd, msg, w_param, l_param,),
         WM_LBUTTONUP => handle_wm_button_click(h_wnd, msg, w_param, l_param),
         WM_KEYDOWN => handle_wm_keydown(h_wnd, msg, w_param, l_param),
+        WM_KEYUP => 0,
         WM_CHAR => handle_wm_char(h_wnd, msg, w_param, l_param),
         WM_CREATE => 0,
         WM_DESTROY => { PostQuitMessage(0); 0 },
@@ -268,27 +294,45 @@ fn run_message_loop (window: &mut Window) {
 }
 
 unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPARAM) -> LRESULT {
-    println!("wm_char");
-    let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
-    if !c.is_control() {
-        crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char, c);
-        update_window(h_wnd);
+    let ctrl_down = (0 != GetAsyncKeyState(VK_CONTROL));
+    if (!ctrl_down) {
+        let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
+        if !c.is_control() {
+            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char(c));
+            update_window(h_wnd);
+        }
     }
     0
 }
 
 unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
-    println!("em_keydown");
     match w_param as i32 {
-        VK_ESCAPE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Escape, ' '); 0 },
-        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back, ' '); update_window(h_wnd); 0 },
-        VK_DELETE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Delete, ' '); update_window(h_wnd); 0 },
-        VK_LEFT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft, ' '); update_window(h_wnd); 0 },
-        VK_UP => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp, ' '); 0 },
-        VK_RIGHT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight, ' '); update_window(h_wnd); 0 },
-        VK_DOWN => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown, ' '); 0 },
-        _ => DefWindowProcW(h_wnd, msg, w_param, l_param)
+        0x41 => { }, // A
+        0x43 => { }, // C
+        0x56 => {
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                let cp_text = get_text_from_clipboard(h_wnd);
+                crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Ctrl_V(cp_text));
+                update_window(h_wnd);
+            }
+        }, // V
+        0x58 => { }, // X
+        VK_ESCAPE => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Escape),
+        
+        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back); update_window(h_wnd); },
+        VK_DELETE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Delete); update_window(h_wnd); },
+        VK_SHIFT => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Shift),
+        VK_CONTROL => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Ctrl),
+        VK_MENU => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Alt),
+        VK_CAPITAL => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::CapsLock),
+        
+        VK_LEFT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft); update_window(h_wnd); },
+        VK_UP => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp),
+        VK_RIGHT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight); update_window(h_wnd); },
+        VK_DOWN => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown),
+        _ => { DefWindowProcW(h_wnd, msg, w_param, l_param); }
     }
+    0
 }
 
 unsafe fn handle_wm_mouse_move(h_wnd: HWND, _msg: UINT, _w_param: WPARAM, l_param: LPARAM) -> LRESULT {
@@ -408,4 +452,36 @@ fn resize_offscreen_buffer(buffer: &mut Win32PixelBuffer, width: i32, height: i3
     buffer.data.pixels = vec![crate::gui::Pixel::default(); pixel_size];
     buffer.data.width = width;
     buffer.data.height = height;
+}
+
+unsafe fn get_text_from_clipboard(h_wnd: HWND) -> Option<String> {
+    let mut result: Option<String> = None;
+    if TRUE == IsClipboardFormatAvailable(CF_UNICODETEXT) {
+        if TRUE == OpenClipboard(h_wnd) {
+            let hglb = GetClipboardData(CF_UNICODETEXT);
+            if NULL != hglb {
+                let lptstr = GlobalLock(hglb);
+                result = convert_from_lpvoid_null_term_to_string(lptstr, 4096);
+                GlobalUnlock(hglb);
+            }
+            CloseClipboard();
+        }
+    }
+    return result;
+}
+
+unsafe fn convert_from_lpvoid_null_term_to_string(ptr: LPVOID, max_length: usize) -> Option<String> {
+    let mut result: Option<String> = None;
+    if NULL != ptr {
+        let mut data = ptr as *const u16;
+        let mut text = String::new();
+        let mut count = 0;
+        while *data != 0 && count < max_length {
+            text.push(std::char::from_u32(*data as u32).unwrap());
+            data = data.offset(1);
+            count += 1;
+        }
+        result = Some(text);
+    }
+    return result;
 }

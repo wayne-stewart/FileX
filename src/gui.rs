@@ -1,4 +1,6 @@
 #![allow(unused_parens)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
 
 pub trait Control {
     fn get_bounds(&self) -> Rect;
@@ -66,6 +68,14 @@ impl TextBox {
         }
     }
 
+    pub fn set_text_option_string(&mut self, text: Option<String>) {
+        self.text.clear();
+        match text {
+            Some(s) => self.set_text(&s),
+            _ => { }
+        }
+    }
+
     pub fn insert_char_at_cursor(&mut self, c: char) {
         if self.cursor_index > self.text.len() {
             self.cursor_index = self.text.len();
@@ -77,9 +87,7 @@ impl TextBox {
     pub fn delete_char_at_cursor(&mut self) {
         if !self.text.is_empty() && 
             self.cursor_index < self.text.len() {
-            println!("before index: {} len: {}", self.cursor_index, self.text.len());
             self.text.remove(self.cursor_index);
-            println!("after index: {} len: {}", self.cursor_index, self.text.len());
         }
     }
 
@@ -89,6 +97,7 @@ impl TextBox {
     }
 
     pub fn set_cursor_index(&mut self, i: usize) {
+        // don't need to check < 0 because cursor_index is a usize
         self.cursor_index = i;
         if self.cursor_index > self.text.len() {
             self.cursor_index = self.text.len();
@@ -278,29 +287,39 @@ pub struct PixelBuffer {
 }
 
 pub enum KeyboardInputType {
-    Char,
+    Char(char),
     Escape,
     Back,
     Delete,
+    Ctrl,
+    Ctrl_A,
+    Ctrl_C,
+    Ctrl_V(Option<String>),
+    Ctrl_X,
+    Alt,
+    Shift,
+    CapsLock,
     ArrowLeft,
     ArrowUp,
     ArrowRight,
     ArrowDown
 }
 
-pub fn handle_keyboard_keydown(keytype: KeyboardInputType, c: char) {
+pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for textbox in textboxes {
         if textbox.active {
             match keytype {
-                KeyboardInputType::Char => textbox.insert_char_at_cursor(c),
+                KeyboardInputType::Char(c) => textbox.insert_char_at_cursor(c),
                 KeyboardInputType::Escape => { },
                 KeyboardInputType::Back => textbox.delete_char_left_of_cursor(),
                 KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
+                KeyboardInputType::Ctrl_V(s) => textbox.set_text_option_string(s),
                 KeyboardInputType::ArrowLeft => textbox.decrement_cursor_index(),
                 KeyboardInputType::ArrowUp => { },
                 KeyboardInputType::ArrowRight => textbox.increment_cursor_index(),
-                KeyboardInputType::ArrowDown => { }
+                KeyboardInputType::ArrowDown => { },
+                _ => { }
             }
             break;
         }
