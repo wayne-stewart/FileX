@@ -127,7 +127,13 @@ impl TextBox {
         else if modifiers.shift == false {
             self.selection_start_index = usize::MAX;
         }
-        self.increment_cursor_index();
+        if modifiers.ctrl {
+            self.ctrl_jump_cursor(1);
+            self.increment_cursor_index();
+        }
+        else {
+            self.increment_cursor_index();
+        }
     }
 
     pub fn handle_arrow_left_keydown(&mut self, modifiers: KeyboardInputModifiers) {
@@ -137,7 +143,27 @@ impl TextBox {
         else if modifiers.shift == false {
             self.selection_start_index = usize::MAX;
         }
-        self.decrement_cursor_index();
+        if modifiers.ctrl {
+            self.ctrl_jump_cursor(-1);
+        }
+        else {
+            self.decrement_cursor_index();
+        }
+    }
+
+    fn ctrl_jump_cursor(&mut self, by: i32) {
+        let mut peek_i = self.cursor_index as i32 + by;
+        let mut i = self.cursor_index as i32;
+        loop {
+            peek_i = peek_i as i32 + by;
+            i = i as i32 + by;
+            if i <= 0 { i = 0; break; }
+            if peek_i >= self.text.len() as i32 { i = self.text.len() as i32; break; }
+            if  self.text[i as usize].is_alphanumeric() && !self.text[peek_i as usize].is_alphanumeric() {
+                break;
+            }
+        }
+        self.cursor_index = i as usize;
     }
 }
 
@@ -349,9 +375,9 @@ pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
                 KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
                 KeyboardInputType::Ctrl_V(s) => textbox.set_text_option_string(s),
                 KeyboardInputType::ArrowLeft(modifiers) => textbox.handle_arrow_left_keydown(modifiers),
-                KeyboardInputType::ArrowUp(modifiers) => { },
+                KeyboardInputType::ArrowUp(_modifiers) => { },
                 KeyboardInputType::ArrowRight(modifiers) => textbox.handle_arrow_right_keydown(modifiers),
-                KeyboardInputType::ArrowDown(modifiers) => { },
+                KeyboardInputType::ArrowDown(_modifiers) => { },
                 _ => { }
             }
             break;
@@ -560,7 +586,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
             text_char_index >= selection_start &&
             text_char_index < selection_end {
             color = highlight_text_color;
-            fill_rect(buffer, cursor_left, cursor_top, font_metrics.advance_width as i32, font_height, highlight_color);
+            fill_rect(buffer, cursor_left, cursor_top - 2, font_metrics.advance_width as i32, font_height + 4, highlight_color);
         }
         for buffer_y in buffer_top..buffer_bottom {
             for buffer_x in buffer_left..buffer_right {
