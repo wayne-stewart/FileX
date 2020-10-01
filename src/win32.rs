@@ -326,10 +326,20 @@ unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LP
         VK_MENU => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Alt),
         VK_CAPITAL => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::CapsLock),
         
-        VK_LEFT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft); update_window(h_wnd); },
-        VK_UP => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp),
-        VK_RIGHT => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight); update_window(h_wnd); },
-        VK_DOWN => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown),
+        VK_LEFT => { 
+            let modifiers = get_keyboard_input_modifiers();
+            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft(modifiers)); 
+            update_window(h_wnd); },
+        VK_UP => {
+            let modifiers = get_keyboard_input_modifiers();
+            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp(modifiers)); },
+        VK_RIGHT => { 
+            let modifiers = get_keyboard_input_modifiers();
+            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight(modifiers)); 
+            update_window(h_wnd); },
+        VK_DOWN => {
+            let modifiers = get_keyboard_input_modifiers();
+            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown(modifiers)); },
         _ => { DefWindowProcW(h_wnd, msg, w_param, l_param); }
     }
     0
@@ -484,4 +494,12 @@ unsafe fn convert_from_lpvoid_null_term_to_string(ptr: LPVOID, max_length: usize
         result = Some(text);
     }
     return result;
+}
+
+unsafe fn get_keyboard_input_modifiers() -> crate::gui::KeyboardInputModifiers {
+    crate::gui::KeyboardInputModifiers {
+        ctrl: (0 != GetAsyncKeyState(VK_CONTROL)),
+        alt: (0 != GetAsyncKeyState(VK_MENU)),
+        shift: (0 != GetAsyncKeyState(VK_SHIFT))
+    }
 }

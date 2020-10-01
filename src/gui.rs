@@ -57,6 +57,7 @@ pub struct TextBox {
     pub hot: bool,
     pub active: bool,
     pub cursor_index: usize, // index of char
+    pub selection_start_index: usize,
     pub style: BoxStyle
 }
 
@@ -118,6 +119,26 @@ impl TextBox {
             self.cursor_index -= 1;
         }
     }
+
+    pub fn handle_arrow_right_keydown(&mut self, modifiers: KeyboardInputModifiers) {
+        if modifiers.shift && self.selection_start_index == usize::MAX {
+            self.selection_start_index = self.cursor_index;
+        }
+        else if modifiers.shift == false {
+            self.selection_start_index = usize::MAX;
+        }
+        self.increment_cursor_index();
+    }
+
+    pub fn handle_arrow_left_keydown(&mut self, modifiers: KeyboardInputModifiers) {
+        if modifiers.shift && self.selection_start_index == usize::MAX {
+            self.selection_start_index = self.cursor_index;
+        }
+        else if modifiers.shift == false {
+            self.selection_start_index = usize::MAX;
+        }
+        self.decrement_cursor_index();
+    }
 }
 
 impl Control for TextBox {
@@ -174,6 +195,8 @@ impl Color {
             blue: b
         }
     }
+
+    pub const WHITE: Color = Color::from_rgb(255,255,255);
 
     pub const LIGHT_GRAY: Color = Color::from_rgb(200, 200, 200);
     pub const DARK_GRAY: Color = Color::from_rgb(50, 50, 50);
@@ -240,6 +263,8 @@ pub struct BoxStyle {
     pub padding_size: BoxSize,
     pub background_color: Color,
     pub text_color: Color,
+    pub highlight_color: Color,
+    pub text_highlight_color: Color,
     pub font_size: f32,
     pub vertical_align: VerticalAlign,
     pub horizontal_align: HorizontalAlign
@@ -254,6 +279,8 @@ impl BoxStyle {
             padding_size: BoxSize::single(2),
             background_color: Color::LIGHT_RED,
             text_color: Color::RED,
+            highlight_color: Color::DARK_RED,
+            text_highlight_color: Color::WHITE,
             font_size: 30.0,
             vertical_align: VerticalAlign::Center,
             horizontal_align: HorizontalAlign::Left
@@ -286,6 +313,12 @@ pub struct PixelBuffer {
     pub height: i32
 }
 
+pub struct KeyboardInputModifiers {
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool
+}
+
 pub enum KeyboardInputType {
     Char(char),
     Escape,
@@ -299,10 +332,10 @@ pub enum KeyboardInputType {
     Alt,
     Shift,
     CapsLock,
-    ArrowLeft,
-    ArrowUp,
-    ArrowRight,
-    ArrowDown
+    ArrowLeft(KeyboardInputModifiers),
+    ArrowUp(KeyboardInputModifiers),
+    ArrowRight(KeyboardInputModifiers),
+    ArrowDown(KeyboardInputModifiers)
 }
 
 pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
@@ -315,10 +348,10 @@ pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
                 KeyboardInputType::Back => textbox.delete_char_left_of_cursor(),
                 KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
                 KeyboardInputType::Ctrl_V(s) => textbox.set_text_option_string(s),
-                KeyboardInputType::ArrowLeft => textbox.decrement_cursor_index(),
-                KeyboardInputType::ArrowUp => { },
-                KeyboardInputType::ArrowRight => textbox.increment_cursor_index(),
-                KeyboardInputType::ArrowDown => { },
+                KeyboardInputType::ArrowLeft(modifiers) => textbox.handle_arrow_left_keydown(modifiers),
+                KeyboardInputType::ArrowUp(modifiers) => { },
+                KeyboardInputType::ArrowRight(modifiers) => textbox.handle_arrow_right_keydown(modifiers),
+                KeyboardInputType::ArrowDown(modifiers) => { },
                 _ => { }
             }
             break;
@@ -418,10 +451,11 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
         height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
-        style.text_color, 
+        style.text_color, style.highlight_color, style.text_highlight_color,
         style.horizontal_align,
         style.vertical_align,
         textbox.cursor_index,
+        textbox.selection_start_index,
         textbox.active);
 }
 
@@ -439,10 +473,10 @@ pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
         height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
-        style.text_color, 
+        style.text_color, style.highlight_color, style.text_highlight_color,
         style.horizontal_align,
         style.vertical_align,
-        0, false);
+        0,usize::MAX, false);
 }
 
 fn draw_border_box(mut buffer: &mut PixelBuffer, bounds: &Rect, style: &BoxStyle) {
@@ -494,9 +528,10 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
 
 fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     left: i32, top: i32, width: i32, height: i32, 
-    font: &fontdue::Font, font_size: f32, color: Color,
+    font: &fontdue::Font, font_size: f32, 
+    text_color: Color, highlight_color: Color, highlight_text_color: Color,
     horizontal_align: HorizontalAlign, vertical_align: VerticalAlign,
-    cursor_index: usize, draw_cursor: bool) {
+    cursor_index: usize, selection_start_index: usize, draw_cursor: bool) {
 
     let buffer_stride = buffer.width;
     let max_bottom = std::cmp::min(top + height, buffer.height);
@@ -511,26 +546,35 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     let cursor_top = top + v_align_offset;
     let mut text_char_index = 0;
     let mut cursor_pos = cursor_left;
+    let selection_start = std::cmp::min(cursor_index, selection_start_index);
+    let selection_end = std::cmp::max(cursor_index, selection_start_index);
     for c in text {
         let (font_metrics, font_bitmap) = font.rasterize(*c, font_size);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
         let buffer_bottom = buffer_top + font_metrics.height as i32;
         let buffer_left = cursor_left;
         let buffer_right = buffer_left + font_metrics.width as i32;
-        let mut font_index = 0;
+        let mut font_bitmap_index = 0;
+        let mut color = text_color;
+        if  selection_start_index != usize::MAX &&
+            text_char_index >= selection_start &&
+            text_char_index < selection_end {
+            color = highlight_text_color;
+            fill_rect(buffer, cursor_left, cursor_top, font_metrics.advance_width as i32, font_height, highlight_color);
+        }
         for buffer_y in buffer_top..buffer_bottom {
             for buffer_x in buffer_left..buffer_right {
                 if  is_point_in_rect_a(buffer_x, buffer_y, max_left, max_top, max_right, max_bottom) {
                     let buffer_index = (buffer_y * buffer_stride) + buffer_x;
                     let buffer_pixel = &mut buffer.pixels[buffer_index as usize];
-                    let font_pixel = font_bitmap[font_index];
+                    let font_pixel = font_bitmap[font_bitmap_index];
                     if font_pixel > 0 {
                         buffer_pixel.red = alpha_blend_u8(color.red, buffer_pixel.red, font_pixel);
                         buffer_pixel.green = alpha_blend_u8(color.green, buffer_pixel.green, font_pixel);
                         buffer_pixel.blue = alpha_blend_u8(color.blue, buffer_pixel.blue, font_pixel);
                     }
                 }
-                font_index += 1;
+                font_bitmap_index += 1;
             }
         }
         cursor_left += font_metrics.advance_width as i32;
@@ -546,7 +590,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
             cursor_top - 2,
             2, // width
             font_height + 4, // height
-            color);
+            text_color);
     }
 }
 

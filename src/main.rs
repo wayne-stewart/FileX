@@ -61,7 +61,8 @@ fn main() {
             text: Vec::new(),
             placeholder: "Username",
             bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
-            hot: false, active: false, cursor_index: 0,
+            hot: false, active: false, 
+            cursor_index: 0, selection_start_index: usize::MAX,
             style: BoxStyle::textbox_default()
         });
     }
