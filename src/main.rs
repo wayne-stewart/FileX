@@ -3,7 +3,15 @@ mod win32;
 
 
 mod gui;
-use self::gui::*;
+use self::gui::Cursor;
+use crate::gui::color::Color;
+use crate::gui::textbox::TextBox;
+use crate::gui::button::Button;
+use crate::gui::draw::fill_rect;
+use crate::gui::draw::draw_button;
+use crate::gui::draw::draw_textbox;
+use crate::gui::Rect;
+use crate::gui::BoxStyle;
 
 trait Platform {
     fn bitblt_back_buffer_to_screen();
@@ -13,8 +21,8 @@ trait Platform {
 struct ApplicationState {
     cursor: Cursor,
     fonts: Vec::<fontdue::Font>,
-    buttons: Vec::<gui::Button>,
-    textboxes: Vec::<gui::TextBox>
+    buttons: Vec::<Button>,
+    textboxes: Vec::<TextBox>
 }
 
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
@@ -24,7 +32,7 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     textboxes: vec![]
 };
 
-fn button_on_click(button: &mut gui::Button) {
+fn button_on_click(button: &mut Button) {
     unsafe {
         button.click_count += 1;
         APPLICATION_STATE.textboxes[0].set_text(&format!("{} was clicked {} times", button.text, button.click_count));
@@ -74,23 +82,23 @@ fn main() {
 fn update_back_buffer(mut buffer: &mut gui::PixelBuffer) {
     let width = buffer.width;
     let height = buffer.height;
-    gui::fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
-    gui::fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
-    gui::fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
-    // fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
-    gui::fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
-    gui::fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
+    fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
+    fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
+    fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
+    //fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
+    fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
+    fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
 
     let font = unsafe { &APPLICATION_STATE.fonts[0] };
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
     let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
-        gui::draw_textbox(buffer, &textbox, &font);
+        draw_textbox(buffer, &textbox, &font);
     }
 
     for button in buttons {
-        gui::draw_button(buffer, &button, &font);
+        draw_button(buffer, &button, &font);
     }
 }
 

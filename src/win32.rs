@@ -7,8 +7,15 @@ extern crate winapi;
 use crate::gui:: {
     PixelBuffer,
     Cursor,
-    is_point_in_rect_a
 };
+use crate::gui::is_point_in_rect_a;
+use crate::gui::keyboard::KeyboardInputType;
+use crate::gui::keyboard::KeyboardInputModifiers;
+use crate::gui::mouse::handle_mouse_button_down;
+use crate::gui::mouse::handle_mouse_button_up;
+use crate::gui::keyboard::handle_keyboard_keydown;
+use crate::update_back_buffer;
+use crate::gui::mouse::handle_mouse_move;
 
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
@@ -298,7 +305,7 @@ unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPA
     if (!ctrl_down) {
         let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
         if !c.is_control() {
-            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Char(c));
+            handle_keyboard_keydown(KeyboardInputType::Char(c));
             update_window(h_wnd);
         }
     }
@@ -312,34 +319,34 @@ unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LP
         0x56 => {
             if 0 != GetAsyncKeyState(VK_CONTROL) {
                 let cp_text = get_text_from_clipboard(h_wnd);
-                crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Ctrl_V(cp_text));
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_V(cp_text));
                 update_window(h_wnd);
             }
         }, // V
         0x58 => { }, // X
-        VK_ESCAPE => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Escape),
+        VK_ESCAPE => handle_keyboard_keydown(KeyboardInputType::Escape),
         
-        VK_BACK => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Back); update_window(h_wnd); },
-        VK_DELETE => { crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Delete); update_window(h_wnd); },
-        VK_SHIFT => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Shift),
-        VK_CONTROL => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Ctrl),
-        VK_MENU => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::Alt),
-        VK_CAPITAL => crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::CapsLock),
+        VK_BACK => { handle_keyboard_keydown(KeyboardInputType::Back); update_window(h_wnd); },
+        VK_DELETE => { handle_keyboard_keydown(KeyboardInputType::Delete); update_window(h_wnd); },
+        VK_SHIFT => handle_keyboard_keydown(KeyboardInputType::Shift),
+        VK_CONTROL => handle_keyboard_keydown(KeyboardInputType::Ctrl),
+        VK_MENU => handle_keyboard_keydown(KeyboardInputType::Alt),
+        VK_CAPITAL => handle_keyboard_keydown(KeyboardInputType::CapsLock),
         
         VK_LEFT => { 
             let modifiers = get_keyboard_input_modifiers();
-            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowLeft(modifiers)); 
+            handle_keyboard_keydown(KeyboardInputType::ArrowLeft(modifiers)); 
             update_window(h_wnd); },
         VK_UP => {
             let modifiers = get_keyboard_input_modifiers();
-            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowUp(modifiers)); },
+            handle_keyboard_keydown(KeyboardInputType::ArrowUp(modifiers)); },
         VK_RIGHT => { 
             let modifiers = get_keyboard_input_modifiers();
-            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowRight(modifiers)); 
+            handle_keyboard_keydown(KeyboardInputType::ArrowRight(modifiers)); 
             update_window(h_wnd); },
         VK_DOWN => {
             let modifiers = get_keyboard_input_modifiers();
-            crate::gui::handle_keyboard_keydown(crate::gui::KeyboardInputType::ArrowDown(modifiers)); },
+            handle_keyboard_keydown(KeyboardInputType::ArrowDown(modifiers)); },
         _ => { DefWindowProcW(h_wnd, msg, w_param, l_param); }
     }
     0
@@ -362,7 +369,7 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, _msg: UINT, _w_param: WPARAM, l_para
         client_rect.right - 2, 
         client_rect.bottom - 2);
 
-    let (cursor, should_update_window) = crate::gui::handle_mouse_move(mouse_x, mouse_y);
+    let (cursor, should_update_window) = handle_mouse_move(mouse_x, mouse_y);
 
     if is_point_in_client_rect {
         crate::APPLICATION_STATE.cursor = cursor;
@@ -382,8 +389,8 @@ unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_par
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
     match msg {
-        WM_LBUTTONDOWN => crate::gui::handle_mouse_button_down(mouse_x, mouse_y),
-        WM_LBUTTONUP => crate::gui::handle_mouse_button_up(mouse_x, mouse_y),
+        WM_LBUTTONDOWN => handle_mouse_button_down(mouse_x, mouse_y),
+        WM_LBUTTONUP => handle_mouse_button_up(mouse_x, mouse_y),
         _ => { }
     }
     update_window(h_wnd);
@@ -423,7 +430,7 @@ fn handle_wm_size(h_wnd: HWND) -> LRESULT {
         let width = client_rect.right - client_rect.left;
         let height = client_rect.bottom - client_rect.top;
         resize_offscreen_buffer(&mut GLOBAL_BACK_BUFFER, width, height);
-        crate::update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
+        update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
     }
     return 0;
 }
@@ -496,8 +503,8 @@ unsafe fn convert_from_lpvoid_null_term_to_string(ptr: LPVOID, max_length: usize
     return result;
 }
 
-unsafe fn get_keyboard_input_modifiers() -> crate::gui::KeyboardInputModifiers {
-    crate::gui::KeyboardInputModifiers {
+unsafe fn get_keyboard_input_modifiers() -> KeyboardInputModifiers {
+    KeyboardInputModifiers {
         ctrl: (0 != GetAsyncKeyState(VK_CONTROL)),
         alt: (0 != GetAsyncKeyState(VK_MENU)),
         shift: (0 != GetAsyncKeyState(VK_SHIFT))
