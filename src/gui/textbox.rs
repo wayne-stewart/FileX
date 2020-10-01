@@ -1,6 +1,6 @@
 
 use crate::gui::is_point_in_rect;
-use crate::gui::BoxStyle;
+use crate::gui::style::BoxStyle;
 use crate::gui::Rect;
 use crate::gui::control::Control;
 use crate::gui::keyboard::KeyboardInputModifiers;

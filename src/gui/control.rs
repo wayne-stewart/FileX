@@ -1,7 +1,7 @@
 
 use crate::gui::is_point_in_rect;
 use crate::gui::Rect;
-use crate::gui::BoxStyle;
+use crate::gui::style::BoxStyle;
 
 pub trait Control {
     fn get_bounds(&self) -> Rect;

@@ -1,9 +1,15 @@
 
-use super::*;
 use crate::TextBox;
 use crate::Button;
 use crate::gui::control::Control;
-use crate::gui::BoxStyle;
+use crate::gui::style::VerticalAlign;
+use crate::gui::style::HorizontalAlign;
+use crate::gui::style::BoxStyle;
+use crate::gui::style::BoxSize;
+use crate::gui::is_point_in_rect_a;
+use crate::gui::color::Color;
+use crate::gui::PixelBuffer;
+use crate::gui::Rect;
 
 pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font) {
     let left = textbox.bounds.x;

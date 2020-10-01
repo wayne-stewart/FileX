@@ -11,7 +11,7 @@ use crate::gui::draw::fill_rect;
 use crate::gui::draw::draw_button;
 use crate::gui::draw::draw_textbox;
 use crate::gui::Rect;
-use crate::gui::BoxStyle;
+use crate::gui::style::BoxStyle;
 
 trait Platform {
     fn bitblt_back_buffer_to_screen();
