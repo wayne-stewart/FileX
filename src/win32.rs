@@ -342,6 +342,18 @@ unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LP
                 update_window(h_wnd);
             }
         },
+        0x59 => { // Y
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_Y);
+                update_window(h_wnd);
+            }
+        },
+        0x5A => { // Z
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_Z);
+                update_window(h_wnd);
+            }
+        },
         VK_ESCAPE => handle_keyboard_keydown(KeyboardInputType::Escape),
         
         VK_BACK => { handle_keyboard_keydown(KeyboardInputType::Back); update_window(h_wnd); },

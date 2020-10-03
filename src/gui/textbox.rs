@@ -5,6 +5,7 @@ use crate::gui::Rect;
 use crate::gui::control::Control;
 use crate::gui::keyboard::KeyboardInputModifiers;
 use std::iter::FromIterator;
+use std::str::FromStr;
 
 pub struct TextBox {
     pub text: Vec::<char>,
@@ -23,6 +24,35 @@ impl TextBox {
         for c in text.chars() {
             self.text.push(c);
         }
+        self.cursor_index = self.text.len();
+        self.selection_start_index = usize::MAX;
+    }
+
+    pub fn set_text_at_selection(&mut self, text: Option<String>) {
+        let text = match text {
+            Some(t) => t,
+            None => String::from_str("").unwrap()
+        };
+        if self.selection_start_index == usize::MAX {
+            self.insert_text_at_cursor(&text);
+        }
+        else {
+            let start = std::cmp::min(self.cursor_index, self.selection_start_index);
+            let end = std::cmp::max(self.cursor_index, self.selection_start_index);
+            for _ in start..end {
+                self.text.remove(start);
+            }
+            self.cursor_index = start;
+            self.insert_text_at_cursor(&text);
+        }
+    }
+
+    fn insert_text_at_cursor(&mut self, text: &str) {
+        for c in text.chars() {
+            self.text.insert(self.cursor_index, c);
+            self.cursor_index += 1;
+        }
+        self.selection_start_index = usize::MAX;
     }
 
     pub fn handle_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
@@ -31,15 +61,7 @@ impl TextBox {
         self.active = hit;
     }
 
-    pub fn set_text_option_string(&mut self, text: Option<String>) {
-        self.text.clear();
-        match text {
-            Some(s) => self.set_text(&s),
-            _ => { }
-        }
-    }
     pub fn copy_selection_to_clipboard(&self) {
-        println!("copy called");
         let method_option = unsafe { crate::APPLICATION_STATE.set_clipboard_text_data };
         match method_option {
             None => { },
@@ -47,10 +69,8 @@ impl TextBox {
                 let mut copied_text: String;
                 if self.selection_start_index == usize::MAX {
                     copied_text = String::from_iter(&self.text);
-                    println!("we have no selection");
                 }
                 else {
-                    println!("we do have a selection");
                     let start = std::cmp::min(self.cursor_index, self.selection_start_index);
                     let end = std::cmp::max(self.cursor_index, self.selection_start_index);
                     copied_text = String::with_capacity(end - start);
@@ -58,7 +78,6 @@ impl TextBox {
                         copied_text.push(self.text[i]);
                     }
                 }
-                println!("{}", copied_text);
                 method(&copied_text);
             }
         }
