@@ -99,8 +99,9 @@ impl TextBox {
     }
 
     pub fn delete_char_left_of_cursor(&mut self) {
-        self.decrement_cursor_index();
-        self.delete_char_at_cursor();
+        if self.decrement_cursor_index() {
+            self.delete_char_at_cursor();
+        }
     }
 
     pub fn set_cursor_index(&mut self, i: usize) {
@@ -120,10 +121,13 @@ impl TextBox {
         }
     }
 
-    pub fn decrement_cursor_index(&mut self) {
+    // returns true if cursor decremented, false if not
+    pub fn decrement_cursor_index(&mut self) -> bool {
         if self.cursor_index > 0 {
             self.cursor_index -= 1;
+            return true;
         }
+        return false;
     }
 
     pub fn handle_arrow_right_keydown(&mut self, modifiers: KeyboardInputModifiers) {
