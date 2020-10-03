@@ -19,13 +19,13 @@ pub struct Button {
 type ButtonClick = fn(&mut Button) -> ();
 
 impl Button {
-    pub fn handle_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
+    pub fn left_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         self.hot = hit;
         self.active = hit;
     }
 
-    pub fn handle_button_mouse_up(&mut self, mouse_x: i32, mouse_y: i32) {
+    pub fn left_mouse_button_up(&mut self, mouse_x: i32, mouse_y: i32) {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         self.hot = hit;
         if self.active && hit {

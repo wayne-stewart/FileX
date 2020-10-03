@@ -2,22 +2,22 @@
 use crate::gui::Cursor;
 use crate::gui::control::Control;
 
-pub fn handle_mouse_button_down(mouse_x: i32, mouse_y: i32) {
+pub fn handle_left_mouse_button_down(mouse_x: i32, mouse_y: i32) {
     let buttons = unsafe { &mut crate::APPLICATION_STATE.buttons };
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
     for button in buttons {
-        button.handle_mouse_button_down(mouse_x, mouse_y);
+        button.left_mouse_button_down(mouse_x, mouse_y);
     }
     for textbox in textboxes {
-        textbox.handle_mouse_button_down(mouse_x, mouse_y);
+        textbox.left_mouse_button_down(mouse_x, mouse_y);
     }
 }
 
-pub fn handle_mouse_button_up(mouse_x: i32, mouse_y: i32) {
+pub fn handle_left_mouse_button_up(mouse_x: i32, mouse_y: i32) {
     let buttons = unsafe { &mut crate::APPLICATION_STATE.buttons };
     //let textboxes = &mut crate::APPLICATION_STATE.textboxes;
     for button in buttons {
-        button.handle_button_mouse_up(mouse_x, mouse_y);
+        button.left_mouse_button_up(mouse_x, mouse_y);
     }
     // for textbox in textboxes {
     //     let hit = is_point_in_rect(mouse_x, mouse_y, textbox.get_bounds());

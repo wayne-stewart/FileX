@@ -132,7 +132,7 @@ impl TextBox {
         self.selection_index = self.text.len();
     }
 
-    pub fn handle_arrow_right_keydown(&mut self, modifiers: KeyboardInputModifiers) {
+    pub fn arrow_right(&mut self, modifiers: KeyboardInputModifiers) {
         if modifiers.shift && self.selection_index == usize::MAX {
             self.selection_index = self.cursor_index;
         }
@@ -148,7 +148,7 @@ impl TextBox {
         }
     }
 
-    pub fn handle_arrow_left_keydown(&mut self, modifiers: KeyboardInputModifiers) {
+    pub fn arrow_left(&mut self, modifiers: KeyboardInputModifiers) {
         if modifiers.shift && self.selection_index == usize::MAX {
             self.selection_index = self.cursor_index;
         }
@@ -163,7 +163,7 @@ impl TextBox {
         }
     }
 
-    pub fn handle_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
+    pub fn left_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         self.hot = hit;
         self.active = hit;

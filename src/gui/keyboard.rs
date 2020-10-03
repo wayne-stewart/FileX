@@ -40,9 +40,9 @@ pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
                 KeyboardInputType::Ctrl_C => textbox.copy_to_clipboard(),
                 KeyboardInputType::Ctrl_V(text) => textbox.insert_text(text),
                 KeyboardInputType::Ctrl_X => textbox.cut_to_clipboard(),
-                KeyboardInputType::ArrowLeft(modifiers) => textbox.handle_arrow_left_keydown(modifiers),
+                KeyboardInputType::ArrowLeft(modifiers) => textbox.arrow_left(modifiers),
                 KeyboardInputType::ArrowUp(_modifiers) => { },
-                KeyboardInputType::ArrowRight(modifiers) => textbox.handle_arrow_right_keydown(modifiers),
+                KeyboardInputType::ArrowRight(modifiers) => textbox.arrow_right(modifiers),
                 KeyboardInputType::ArrowDown(_modifiers) => { },
                 _ => { }
             }

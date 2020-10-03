@@ -11,8 +11,8 @@ use crate::gui:: {
 use crate::gui::is_point_in_rect_a;
 use crate::gui::keyboard::KeyboardInputType;
 use crate::gui::keyboard::KeyboardInputModifiers;
-use crate::gui::mouse::handle_mouse_button_down;
-use crate::gui::mouse::handle_mouse_button_up;
+use crate::gui::mouse::handle_left_mouse_button_down;
+use crate::gui::mouse::handle_left_mouse_button_up;
 use crate::gui::keyboard::handle_keyboard_keydown;
 use crate::update_back_buffer;
 use crate::gui::mouse::handle_mouse_move;
@@ -419,8 +419,8 @@ unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_par
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
     match msg {
-        WM_LBUTTONDOWN => handle_mouse_button_down(mouse_x, mouse_y),
-        WM_LBUTTONUP => handle_mouse_button_up(mouse_x, mouse_y),
+        WM_LBUTTONDOWN => handle_left_mouse_button_down(mouse_x, mouse_y),
+        WM_LBUTTONUP => handle_left_mouse_button_up(mouse_x, mouse_y),
         _ => { }
     }
     update_window(h_wnd);
