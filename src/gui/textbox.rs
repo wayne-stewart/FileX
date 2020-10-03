@@ -177,6 +177,17 @@ impl TextBox {
         }
     }
 
+    pub fn cut_to_clipboard(&mut self) {
+        let method_option = unsafe { crate::APPLICATION_STATE.set_clipboard_text_data };
+        match method_option {
+            None => { },
+            Some(method) => { 
+                method(&self.get_text());
+                self.delete();
+            }
+        }
+    }
+
     fn ctrl_jump_cursor(&mut self, by: i32) {
         let mut peek_i = self.cursor_index as i32 + by;
         let mut i = self.cursor_index as i32;
@@ -257,6 +268,7 @@ mod textbox_tests {
         textbox.cursor_index = 2;
         textbox.selection_index = 7;
         assert_eq!(textbox.get_text(), "34567");
+        // makes ure get_text didn't modify the indexes
         assert_eq!(textbox.cursor_index, 2);
         assert_eq!(textbox.selection_index, 7);
         
