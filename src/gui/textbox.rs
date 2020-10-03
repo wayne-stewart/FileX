@@ -21,20 +21,17 @@ pub struct TextBox {
 impl TextBox {
     pub fn set_text(&mut self, text: &str) {
         self.text.clear();
-        for c in text.chars() {
-            self.text.push(c);
-        }
-        self.cursor_index = self.text.len();
-        self.selection_start_index = usize::MAX;
+        self.cursor_index = 0;
+        self._insert_text(text);
     }
 
-    pub fn set_text_at_selection(&mut self, text: Option<String>) {
+    pub fn insert_text(&mut self, text: Option<String>) {
         let text = match text {
             Some(t) => t,
             None => String::from_str("").unwrap()
         };
         if self.selection_start_index == usize::MAX {
-            self.insert_text_at_cursor(&text);
+            self._insert_text(&text);
         }
         else {
             let start = std::cmp::min(self.cursor_index, self.selection_start_index);
@@ -43,11 +40,11 @@ impl TextBox {
                 self.text.remove(start);
             }
             self.cursor_index = start;
-            self.insert_text_at_cursor(&text);
+            self._insert_text(&text);
         }
     }
 
-    fn insert_text_at_cursor(&mut self, text: &str) {
+    fn _insert_text(&mut self, text: &str) {
         for c in text.chars() {
             self.text.insert(self.cursor_index, c);
             self.cursor_index += 1;
@@ -55,35 +52,7 @@ impl TextBox {
         self.selection_start_index = usize::MAX;
     }
 
-    pub fn handle_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
-        let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
-        self.hot = hit;
-        self.active = hit;
-    }
-
-    pub fn copy_selection_to_clipboard(&self) {
-        let method_option = unsafe { crate::APPLICATION_STATE.set_clipboard_text_data };
-        match method_option {
-            None => { },
-            Some(method) => { 
-                let mut copied_text: String;
-                if self.selection_start_index == usize::MAX {
-                    copied_text = String::from_iter(&self.text);
-                }
-                else {
-                    let start = std::cmp::min(self.cursor_index, self.selection_start_index);
-                    let end = std::cmp::max(self.cursor_index, self.selection_start_index);
-                    copied_text = String::with_capacity(end - start);
-                    for i in start..end {
-                        copied_text.push(self.text[i]);
-                    }
-                }
-                method(&copied_text);
-            }
-        }
-    }
-
-    pub fn insert_char_at_cursor(&mut self, c: char) {
+    pub fn insert_char(&mut self, c: char) {
         if self.cursor_index > self.text.len() {
             self.cursor_index = self.text.len();
         }
@@ -91,16 +60,21 @@ impl TextBox {
         self.increment_cursor_index();
     }
 
-    pub fn delete_char_at_cursor(&mut self) {
+    pub fn delete(&mut self) {
         if !self.text.is_empty() && 
             self.cursor_index < self.text.len() {
             self.text.remove(self.cursor_index);
         }
     }
 
-    pub fn delete_char_left_of_cursor(&mut self) {
-        if self.decrement_cursor_index() {
-            self.delete_char_at_cursor();
+    pub fn delete_back(&mut self) {
+        if self.selection_start_index == usize::MAX {
+            if self.decrement_cursor_index() {
+                self.delete();
+            }
+        }
+        else {
+            self.delete();
         }
     }
 
@@ -158,6 +132,34 @@ impl TextBox {
         }
         else {
             self.decrement_cursor_index();
+        }
+    }
+
+    pub fn handle_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
+        let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
+        self.hot = hit;
+        self.active = hit;
+    }
+
+    pub fn copy_to_clipboard(&self) {
+        let method_option = unsafe { crate::APPLICATION_STATE.set_clipboard_text_data };
+        match method_option {
+            None => { },
+            Some(method) => { 
+                let mut copied_text: String;
+                if self.selection_start_index == usize::MAX {
+                    copied_text = String::from_iter(&self.text);
+                }
+                else {
+                    let start = std::cmp::min(self.cursor_index, self.selection_start_index);
+                    let end = std::cmp::max(self.cursor_index, self.selection_start_index);
+                    copied_text = String::with_capacity(end - start);
+                    for i in start..end {
+                        copied_text.push(self.text[i]);
+                    }
+                }
+                method(&copied_text);
+            }
         }
     }
 

@@ -32,12 +32,12 @@ pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
     for textbox in textboxes {
         if textbox.active {
             match keytype {
-                KeyboardInputType::Char(c) => textbox.insert_char_at_cursor(c),
+                KeyboardInputType::Char(c) => textbox.insert_char(c),
                 KeyboardInputType::Escape => { },
-                KeyboardInputType::Back => textbox.delete_char_left_of_cursor(),
-                KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
-                KeyboardInputType::Ctrl_C => textbox.copy_selection_to_clipboard(),
-                KeyboardInputType::Ctrl_V(text) => textbox.set_text_at_selection(text),
+                KeyboardInputType::Back => textbox.delete_back(),
+                KeyboardInputType::Delete => textbox.delete(),
+                KeyboardInputType::Ctrl_C => textbox.copy_to_clipboard(),
+                KeyboardInputType::Ctrl_V(text) => textbox.insert_text(text),
                 KeyboardInputType::ArrowLeft(modifiers) => textbox.handle_arrow_left_keydown(modifiers),
                 KeyboardInputType::ArrowUp(_modifiers) => { },
                 KeyboardInputType::ArrowRight(modifiers) => textbox.handle_arrow_right_keydown(modifiers),
