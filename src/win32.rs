@@ -89,7 +89,10 @@ use self::winapi::shared::windowsx::{
 
 use self::winapi::um::winbase::{
     GlobalLock,
-    GlobalUnlock
+    GlobalUnlock,
+    GlobalAlloc,
+
+    GMEM_MOVEABLE,
 };
 
 use self::winapi::um::winuser::{
@@ -149,6 +152,7 @@ use self::winapi::um::winuser::{
     CloseClipboard,
     GetClipboardData,
     SetClipboardData,
+    EmptyClipboard,
     CF_UNICODETEXT,
 
     // Message Box
@@ -314,16 +318,30 @@ unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPA
 
 unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     match w_param as i32 {
-        0x41 => { }, // A
-        0x43 => { }, // C
-        0x56 => {
+        0x41 => { // A
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_A);
+                update_window(h_wnd);
+            }
+        }, 
+        0x43 => { // C
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_C);
+            }
+        },
+        0x56 => { // V
             if 0 != GetAsyncKeyState(VK_CONTROL) {
                 let cp_text = get_text_from_clipboard(h_wnd);
                 handle_keyboard_keydown(KeyboardInputType::Ctrl_V(cp_text));
                 update_window(h_wnd);
             }
-        }, // V
-        0x58 => { }, // X
+        },
+        0x58 => { // X
+            if 0 != GetAsyncKeyState(VK_CONTROL) {
+                handle_keyboard_keydown(KeyboardInputType::Ctrl_X);
+                update_window(h_wnd);
+            }
+        },
         VK_ESCAPE => handle_keyboard_keydown(KeyboardInputType::Escape),
         
         VK_BACK => { handle_keyboard_keydown(KeyboardInputType::Back); update_window(h_wnd); },
@@ -485,6 +503,30 @@ unsafe fn get_text_from_clipboard(h_wnd: HWND) -> Option<String> {
         }
     }
     return result;
+}
+
+pub fn set_text_into_clipboard(text: &str) { //(h_wnd: HWND, s: &str) {
+    unsafe {
+        //if TRUE == OpenClipboard(h_wnd) {
+        if TRUE == OpenClipboard(NULL as HWND) {
+            EmptyClipboard();
+            let mut utf16: Vec::<u16> = text.encode_utf16().collect();
+            utf16.push(0);
+            let ptr_to_utf16 = utf16.as_ptr() as *const u8;
+            let hglb = GlobalAlloc(GMEM_MOVEABLE, utf16.len() * 2);
+            if NULL != hglb {
+                let lptstr = GlobalLock(hglb) as *mut u8;
+                for data_offset in 0..(utf16.len() * 2) as isize {
+                    let src = ptr_to_utf16.offset(data_offset);
+                    let dst = lptstr.offset(data_offset);
+                    std::ptr::write(dst, *src);
+                }
+                GlobalUnlock(hglb);
+                SetClipboardData(CF_UNICODETEXT, hglb);
+            }
+            CloseClipboard();
+        }
+    }
 }
 
 unsafe fn convert_from_lpvoid_null_term_to_string(ptr: LPVOID, max_length: usize) -> Option<String> {

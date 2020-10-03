@@ -4,6 +4,7 @@ use crate::gui::style::BoxStyle;
 use crate::gui::Rect;
 use crate::gui::control::Control;
 use crate::gui::keyboard::KeyboardInputModifiers;
+use std::iter::FromIterator;
 
 pub struct TextBox {
     pub text: Vec::<char>,
@@ -35,6 +36,31 @@ impl TextBox {
         match text {
             Some(s) => self.set_text(&s),
             _ => { }
+        }
+    }
+    pub fn copy_selection_to_clipboard(&self) {
+        println!("copy called");
+        let method_option = unsafe { crate::APPLICATION_STATE.set_clipboard_text_data };
+        match method_option {
+            None => { },
+            Some(method) => { 
+                let mut copied_text: String;
+                if self.selection_start_index == usize::MAX {
+                    copied_text = String::from_iter(&self.text);
+                    println!("we have no selection");
+                }
+                else {
+                    println!("we do have a selection");
+                    let start = std::cmp::min(self.cursor_index, self.selection_start_index);
+                    let end = std::cmp::max(self.cursor_index, self.selection_start_index);
+                    copied_text = String::with_capacity(end - start);
+                    for i in start..end {
+                        copied_text.push(self.text[i]);
+                    }
+                }
+                println!("{}", copied_text);
+                method(&copied_text);
+            }
         }
     }
 

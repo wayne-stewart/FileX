@@ -13,12 +13,19 @@ use crate::gui::draw::draw_textbox;
 use crate::gui::Rect;
 use crate::gui::style::BoxStyle;
 
+use crate::win32::platform_init;
+use crate::win32::platform_run;
+use crate::win32::set_text_into_clipboard;
+
 trait Platform {
     fn bitblt_back_buffer_to_screen();
     fn create_timer(milliseconds: u32);
 }
 
+type SetClipboardTextData = fn(&str) -> ();
+
 struct ApplicationState {
+    set_clipboard_text_data: Option<SetClipboardTextData>,
     cursor: Cursor,
     fonts: Vec::<fontdue::Font>,
     buttons: Vec::<Button>,
@@ -26,6 +33,7 @@ struct ApplicationState {
 }
 
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
+    set_clipboard_text_data: None,
     cursor: gui::Cursor::NotSet,
     fonts: vec![],
     buttons: vec![],
@@ -73,10 +81,12 @@ fn main() {
             cursor_index: 0, selection_start_index: usize::MAX,
             style: BoxStyle::textbox_default()
         });
+
+        APPLICATION_STATE.set_clipboard_text_data = Some(set_text_into_clipboard);
     }
 
-    win32::platform_init();
-    win32::platform_run();
+    platform_init();
+    platform_run();
 }
 
 fn update_back_buffer(mut buffer: &mut gui::PixelBuffer) {

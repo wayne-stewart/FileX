@@ -34,6 +34,7 @@ pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
                 KeyboardInputType::Escape => { },
                 KeyboardInputType::Back => textbox.delete_char_left_of_cursor(),
                 KeyboardInputType::Delete => textbox.delete_char_at_cursor(),
+                KeyboardInputType::Ctrl_C => textbox.copy_selection_to_clipboard(),
                 KeyboardInputType::Ctrl_V(s) => textbox.set_text_option_string(s),
                 KeyboardInputType::ArrowLeft(modifiers) => textbox.handle_arrow_left_keydown(modifiers),
                 KeyboardInputType::ArrowUp(_modifiers) => { },

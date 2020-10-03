@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 winapi = "0.3.*"
 fontdue = "0.3.2"
-bstr = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser","libloaderapi","windowsx","winbase"] }
