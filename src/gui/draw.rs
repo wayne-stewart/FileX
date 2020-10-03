@@ -29,7 +29,7 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
         style.horizontal_align,
         style.vertical_align,
         textbox.cursor_index,
-        textbox.selection_start_index,
+        textbox.selection_index,
         textbox.active);
 }
 
@@ -105,7 +105,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     font: &fontdue::Font, font_size: f32, 
     text_color: Color, highlight_color: Color, highlight_text_color: Color,
     horizontal_align: HorizontalAlign, vertical_align: VerticalAlign,
-    cursor_index: usize, selection_start_index: usize, draw_cursor: bool) {
+    cursor_index: usize, selection_index: usize, draw_cursor: bool) {
 
     let buffer_stride = buffer.width;
     let max_bottom = std::cmp::min(top + height, buffer.height);
@@ -120,8 +120,8 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     let cursor_top = top + v_align_offset;
     let mut text_char_index = 0;
     let mut cursor_pos = cursor_left;
-    let selection_start = std::cmp::min(cursor_index, selection_start_index);
-    let selection_end = std::cmp::max(cursor_index, selection_start_index);
+    let selection_start = std::cmp::min(cursor_index, selection_index);
+    let selection_end = std::cmp::max(cursor_index, selection_index);
     for c in text {
         let (font_metrics, font_bitmap) = font.rasterize(*c, font_size);
         let buffer_top = cursor_top + font_height - font_metrics.height as i32 - font_metrics.ymin;
@@ -130,7 +130,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
         let buffer_right = buffer_left + font_metrics.width as i32;
         let mut font_bitmap_index = 0;
         let mut color = text_color;
-        if  selection_start_index != usize::MAX &&
+        if  selection_index != usize::MAX &&
             text_char_index >= selection_start &&
             text_char_index < selection_end {
             color = highlight_text_color;

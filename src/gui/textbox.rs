@@ -14,32 +14,29 @@ pub struct TextBox {
     pub hot: bool,
     pub active: bool,
     pub cursor_index: usize, // index of char
-    pub selection_start_index: usize,
+    pub selection_index: usize,
     pub style: BoxStyle
 }
 
 impl TextBox {
+    // replaces all text in the control
     pub fn set_text(&mut self, text: &str) {
         self.text.clear();
         self.cursor_index = 0;
         self._insert_text(text);
     }
 
+    // inserts text at cursor or replaces text in selection
     pub fn insert_text(&mut self, text: Option<String>) {
         let text = match text {
             Some(t) => t,
             None => String::from_str("").unwrap()
         };
-        if self.selection_start_index == usize::MAX {
+        if self.selection_index == usize::MAX {
             self._insert_text(&text);
         }
         else {
-            let start = std::cmp::min(self.cursor_index, self.selection_start_index);
-            let end = std::cmp::max(self.cursor_index, self.selection_start_index);
-            for _ in start..end {
-                self.text.remove(start);
-            }
-            self.cursor_index = start;
+            self.delete();
             self._insert_text(&text);
         }
     }
@@ -49,7 +46,7 @@ impl TextBox {
             self.text.insert(self.cursor_index, c);
             self.cursor_index += 1;
         }
-        self.selection_start_index = usize::MAX;
+        self.selection_index = usize::MAX;
     }
 
     pub fn insert_char(&mut self, c: char) {
@@ -61,14 +58,24 @@ impl TextBox {
     }
 
     pub fn delete(&mut self) {
-        if !self.text.is_empty() && 
-            self.cursor_index < self.text.len() {
-            self.text.remove(self.cursor_index);
+        if self.selection_index == usize::MAX {
+            if self.cursor_index < self.text.len() {
+                self.text.remove(self.cursor_index);
+            }
+        }
+        else {
+            let start = std::cmp::min(self.cursor_index, self.selection_index);
+            let end = std::cmp::max(self.cursor_index, self.selection_index);
+            for _ in start..end {
+                self.text.remove(start);
+            }
+            self.cursor_index = start;
+            self.selection_index = usize::MAX;
         }
     }
 
     pub fn delete_back(&mut self) {
-        if self.selection_start_index == usize::MAX {
+        if self.selection_index == usize::MAX {
             if self.decrement_cursor_index() {
                 self.delete();
             }
@@ -105,11 +112,11 @@ impl TextBox {
     }
 
     pub fn handle_arrow_right_keydown(&mut self, modifiers: KeyboardInputModifiers) {
-        if modifiers.shift && self.selection_start_index == usize::MAX {
-            self.selection_start_index = self.cursor_index;
+        if modifiers.shift && self.selection_index == usize::MAX {
+            self.selection_index = self.cursor_index;
         }
         else if modifiers.shift == false {
-            self.selection_start_index = usize::MAX;
+            self.selection_index = usize::MAX;
         }
         if modifiers.ctrl {
             self.ctrl_jump_cursor(1);
@@ -121,11 +128,11 @@ impl TextBox {
     }
 
     pub fn handle_arrow_left_keydown(&mut self, modifiers: KeyboardInputModifiers) {
-        if modifiers.shift && self.selection_start_index == usize::MAX {
-            self.selection_start_index = self.cursor_index;
+        if modifiers.shift && self.selection_index == usize::MAX {
+            self.selection_index = self.cursor_index;
         }
         else if modifiers.shift == false {
-            self.selection_start_index = usize::MAX;
+            self.selection_index = usize::MAX;
         }
         if modifiers.ctrl {
             self.ctrl_jump_cursor(-1);
@@ -147,12 +154,12 @@ impl TextBox {
             None => { },
             Some(method) => { 
                 let mut copied_text: String;
-                if self.selection_start_index == usize::MAX {
+                if self.selection_index == usize::MAX {
                     copied_text = String::from_iter(&self.text);
                 }
                 else {
-                    let start = std::cmp::min(self.cursor_index, self.selection_start_index);
-                    let end = std::cmp::max(self.cursor_index, self.selection_start_index);
+                    let start = std::cmp::min(self.cursor_index, self.selection_index);
+                    let end = std::cmp::max(self.cursor_index, self.selection_index);
                     copied_text = String::with_capacity(end - start);
                     for i in start..end {
                         copied_text.push(self.text[i]);
@@ -189,4 +196,39 @@ impl Control for TextBox {
     }
 }
 
+#[cfg(test)]
+mod textbox_tests {
+    use super::*;
 
+    fn create_textbox_for_test() -> TextBox {
+        let mut x = TextBox {
+            text: Vec::new(),
+            placeholder: "placeholder",
+            bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
+            hot: false, active: false, 
+            cursor_index: 0, selection_index: usize::MAX,
+            style: BoxStyle::textbox_default()
+        };
+        x.set_text("1234567890");
+        x
+    }
+
+    #[test]
+    fn test_delete() {
+        let mut textbox = create_textbox_for_test();
+
+        // delete single character at index 3 which should be the 4
+        textbox.cursor_index = 3;
+        textbox.delete();
+        assert_eq!(textbox.cursor_index, 3);
+        assert_eq!(textbox.selection_index, usize::MAX);
+        assert_eq!(&String::from_iter(&textbox.text), "123567890");
+
+        // delete range of characters from index 3 to 6 
+        textbox.selection_index = 6;
+        textbox.delete();
+        assert_eq!(textbox.cursor_index, 3);
+        assert_eq!(textbox.selection_index, usize::MAX);
+        assert_eq!(&String::from_iter(&textbox.text), "123890");
+    }
+}
