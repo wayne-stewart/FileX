@@ -23,11 +23,13 @@ impl Button {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         self.hot = hit;
         self.active = hit;
+        crate::update_window();
     }
 
     pub fn left_mouse_button_up(&mut self, mouse_x: i32, mouse_y: i32) {
         let hit = is_point_in_rect(mouse_x, mouse_y, self.get_bounds());
         self.hot = hit;
+        crate::update_window();
         if self.active && hit {
             match self.on_click {
                 Some(method) => method(self),

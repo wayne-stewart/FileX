@@ -1,12 +1,12 @@
 
-
-pub struct KeyboardInputModifiers {
+#[derive(Debug, Copy, Clone)]
+pub struct KeyboardModifiers {
     pub ctrl: bool,
     pub alt: bool,
     pub shift: bool
 }
 
-pub enum KeyboardInputType {
+pub enum KeyboardInput {
     Char(char),
     Escape,
     Back,
@@ -21,34 +21,38 @@ pub enum KeyboardInputType {
     Alt,
     Shift,
     CapsLock,
-    ArrowLeft(KeyboardInputModifiers),
-    ArrowUp(KeyboardInputModifiers),
-    ArrowRight(KeyboardInputModifiers),
-    ArrowDown(KeyboardInputModifiers)
+    ArrowLeft(KeyboardModifiers),
+    ArrowUp(KeyboardModifiers),
+    ArrowRight(KeyboardModifiers),
+    ArrowDown(KeyboardModifiers),
+    Home(KeyboardModifiers),
+    End(KeyboardModifiers)
 }
 
-pub fn handle_keyboard_keydown(keytype: KeyboardInputType) {
+pub fn keyboard_keydown(keytype: KeyboardInput) {
     let textboxes = unsafe { &mut crate::APPLICATION_STATE.textboxes };
+    crate::update_window();
     for textbox in textboxes {
         if textbox.active {
             match keytype {
-                KeyboardInputType::Char(c) => textbox.insert_char(c),
-                KeyboardInputType::Escape => { },
-                KeyboardInputType::Back => textbox.delete_back(),
-                KeyboardInputType::Delete => textbox.delete(),
-                KeyboardInputType::Ctrl_A => textbox.select_all(),
-                KeyboardInputType::Ctrl_C => textbox.copy_to_clipboard(),
-                KeyboardInputType::Ctrl_V(text) => textbox.insert_text(text),
-                KeyboardInputType::Ctrl_X => textbox.cut_to_clipboard(),
-                KeyboardInputType::ArrowLeft(modifiers) => textbox.arrow_left(modifiers),
-                KeyboardInputType::ArrowUp(_modifiers) => { },
-                KeyboardInputType::ArrowRight(modifiers) => textbox.arrow_right(modifiers),
-                KeyboardInputType::ArrowDown(_modifiers) => { },
+                KeyboardInput::Char(c) => textbox.insert_char(c),
+                KeyboardInput::Escape => { },
+                KeyboardInput::Back => textbox.delete_back(),
+                KeyboardInput::Delete => textbox.delete(),
+                KeyboardInput::Ctrl_A => textbox.select_all(),
+                KeyboardInput::Ctrl_C => textbox.copy_to_clipboard(),
+                KeyboardInput::Ctrl_V(text) => textbox.insert_text(text),
+                KeyboardInput::Ctrl_X => textbox.cut_to_clipboard(),
+                KeyboardInput::ArrowLeft(modifiers) => textbox.arrow_left(modifiers),
+                KeyboardInput::ArrowUp(_modifiers) => { },
+                KeyboardInput::ArrowRight(modifiers) => textbox.arrow_right(modifiers),
+                KeyboardInput::ArrowDown(_modifiers) => { },
+                KeyboardInput::Home(modifiers) => textbox.home(modifiers),
+                KeyboardInput::End(modifiers) => textbox.end(modifiers),
                 _ => { }
             }
             break;
         }
     }
-
 }
 

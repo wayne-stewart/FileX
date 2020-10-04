@@ -3,7 +3,7 @@ use crate::gui::is_point_in_rect;
 use crate::gui::style::BoxStyle;
 use crate::gui::Rect;
 use crate::gui::control::Control;
-use crate::gui::keyboard::KeyboardInputModifiers;
+use crate::gui::keyboard::KeyboardModifiers;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
@@ -132,13 +132,8 @@ impl TextBox {
         self.selection_index = self.text.len();
     }
 
-    pub fn arrow_right(&mut self, modifiers: KeyboardInputModifiers) {
-        if modifiers.shift && self.selection_index == usize::MAX {
-            self.selection_index = self.cursor_index;
-        }
-        else if modifiers.shift == false {
-            self.selection_index = usize::MAX;
-        }
+    pub fn arrow_right(&mut self, modifiers: KeyboardModifiers) {
+        self.update_selection_index(modifiers);
         if modifiers.ctrl {
             self.ctrl_jump_cursor(1);
             self.increment_cursor_index();
@@ -148,19 +143,26 @@ impl TextBox {
         }
     }
 
-    pub fn arrow_left(&mut self, modifiers: KeyboardInputModifiers) {
-        if modifiers.shift && self.selection_index == usize::MAX {
-            self.selection_index = self.cursor_index;
-        }
-        else if modifiers.shift == false {
-            self.selection_index = usize::MAX;
-        }
+    pub fn arrow_left(&mut self, modifiers: KeyboardModifiers) {
+        self.update_selection_index(modifiers);
         if modifiers.ctrl {
             self.ctrl_jump_cursor(-1);
         }
         else {
             self.decrement_cursor_index();
         }
+    }
+
+    pub fn home(&mut self, modifiers: KeyboardModifiers) {
+        self.update_selection_index(modifiers);
+        self.cursor_index = 0;
+        crate::update_window();
+    }
+
+    pub fn end(&mut self, modifiers: KeyboardModifiers) {
+        self.update_selection_index(modifiers);
+        self.cursor_index = self.text.len();
+        crate::update_window();
     }
 
     pub fn left_mouse_button_down(&mut self, mouse_x: i32, mouse_y: i32) {
@@ -185,6 +187,15 @@ impl TextBox {
                 method(&self.get_text());
                 self.delete();
             }
+        }
+    }
+
+    fn update_selection_index(&mut self, modifiers: KeyboardModifiers) {
+        if modifiers.shift && self.selection_index == usize::MAX {
+            self.selection_index = self.cursor_index;
+        }
+        else if modifiers.shift == false {
+            self.selection_index = usize::MAX;
         }
     }
 

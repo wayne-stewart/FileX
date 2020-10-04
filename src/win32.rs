@@ -9,11 +9,11 @@ use crate::gui:: {
     Cursor,
 };
 use crate::gui::is_point_in_rect_a;
-use crate::gui::keyboard::KeyboardInputType;
-use crate::gui::keyboard::KeyboardInputModifiers;
+use crate::gui::keyboard::KeyboardInput;
+use crate::gui::keyboard::KeyboardModifiers;
 use crate::gui::mouse::handle_left_mouse_button_down;
 use crate::gui::mouse::handle_left_mouse_button_up;
-use crate::gui::keyboard::handle_keyboard_keydown;
+use crate::gui::keyboard::keyboard_keydown;
 use crate::update_back_buffer;
 use crate::gui::mouse::handle_mouse_move;
 
@@ -141,6 +141,8 @@ use self::winapi::um::winuser::{
     VK_LEFT,
     VK_UP,
     VK_DOWN,
+    VK_HOME,
+    VK_END,
     VK_SHIFT,
     VK_CONTROL,
     VK_MENU, // ALT
@@ -180,10 +182,6 @@ use self::winapi::um::winuser::{
     InvalidateRect
 };
 
-struct Window {
-    handle: HWND
-}
-
 struct Win32PixelBuffer {
     info: BITMAPINFO,
     data: PixelBuffer
@@ -193,26 +191,23 @@ static mut CURSOR_ARROW: HCURSOR = null_mut();
 static mut CURSOR_HAND: HCURSOR = null_mut();
 static mut CURSOR_IBEAM: HCURSOR = null_mut();
 static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
+static mut WINDOW_HANDLE: HWND = null_mut();
 
-pub fn platform_init() {
+pub fn platform_run() {
     unsafe {
         CURSOR_ARROW = LoadCursorW(null_mut(), IDC_ARROW);
         CURSOR_HAND = LoadCursorW(null_mut(), IDC_HAND);
         CURSOR_IBEAM = LoadCursorW(null_mut(), IDC_IBEAM);
     }
-}
-
-pub fn platform_run() {
-    let mut window = create_window("FileX", "FileX").unwrap();
-
-    run_message_loop(&mut window);
+    create_window("FileX", "FileX");
+    run_message_loop();
 }
 
 fn win32_string(value : &str) -> Vec<u16> {
     OsStr::new(value).encode_wide().chain(once(0)).collect()
 }
 
-fn create_window(name: &str, title: &str) -> Result<Window, Error> {
+fn create_window(name: &str, title: &str) {
     let name = win32_string(name);
     let title = win32_string(title);
     unsafe {
@@ -247,11 +242,7 @@ fn create_window(name: &str, title: &str) -> Result<Window, Error> {
             null_mut()
         );
 
-        if handle.is_null() {
-            Err(Error::last_os_error())
-        } else {
-            Ok(Window { handle })
-        }
+        WINDOW_HANDLE = handle;
     }
 }
 
@@ -282,17 +273,18 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
     }
 }
 
-unsafe fn update_window(h_wnd: HWND) {
-    crate::update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
-    InvalidateRect(h_wnd, null_mut(), 0);
+pub fn invalidate_window() {
+    unsafe {
+        InvalidateRect(WINDOW_HANDLE, null_mut(), 0);
+    }
 }
 
 
-fn run_message_loop (window: &mut Window) {
+fn run_message_loop () {
     unsafe {
         loop {
             let mut msg = mem::MaybeUninit::<MSG>::zeroed().assume_init();
-            if GetMessageW(&mut msg, window.handle, 0, 0) > 0 {
+            if GetMessageW(&mut msg, WINDOW_HANDLE, 0, 0) > 0 {
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
                 continue
@@ -304,13 +296,12 @@ fn run_message_loop (window: &mut Window) {
     }
 }
 
-unsafe fn handle_wm_char(h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPARAM) -> LRESULT {
+unsafe fn handle_wm_char(_h_wnd: HWND, _msg: UINT, w_param: WPARAM, _l_param: LPARAM) -> LRESULT {
     let ctrl_down = (0 != GetAsyncKeyState(VK_CONTROL));
     if (!ctrl_down) {
         let c = std::char::decode_utf16([w_param as u16].iter().cloned()).nth(0).unwrap().unwrap();
         if !c.is_control() {
-            handle_keyboard_keydown(KeyboardInputType::Char(c));
-            update_window(h_wnd);
+            keyboard_keydown(KeyboardInput::Char(c));
         }
     }
     0
@@ -320,63 +311,50 @@ unsafe fn handle_wm_keydown(h_wnd: HWND, msg: UINT, w_param: WPARAM, l_param: LP
     match w_param as i32 {
         0x41 => { // A
             if 0 != GetAsyncKeyState(VK_CONTROL) {
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_A);
-                update_window(h_wnd);
+                keyboard_keydown(KeyboardInput::Ctrl_A);
             }
         }, 
         0x43 => { // C
             if 0 != GetAsyncKeyState(VK_CONTROL) {
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_C);
+                keyboard_keydown(KeyboardInput::Ctrl_C);
             }
         },
         0x56 => { // V
             if 0 != GetAsyncKeyState(VK_CONTROL) {
                 let cp_text = get_text_from_clipboard(h_wnd);
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_V(cp_text));
-                update_window(h_wnd);
+                keyboard_keydown(KeyboardInput::Ctrl_V(cp_text));
             }
         },
         0x58 => { // X
             if 0 != GetAsyncKeyState(VK_CONTROL) {
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_X);
-                update_window(h_wnd);
+                keyboard_keydown(KeyboardInput::Ctrl_X);
             }
         },
         0x59 => { // Y
             if 0 != GetAsyncKeyState(VK_CONTROL) {
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_Y);
-                update_window(h_wnd);
+                keyboard_keydown(KeyboardInput::Ctrl_Y);
             }
         },
         0x5A => { // Z
             if 0 != GetAsyncKeyState(VK_CONTROL) {
-                handle_keyboard_keydown(KeyboardInputType::Ctrl_Z);
-                update_window(h_wnd);
+                keyboard_keydown(KeyboardInput::Ctrl_Z);
             }
         },
-        VK_ESCAPE => handle_keyboard_keydown(KeyboardInputType::Escape),
+        VK_ESCAPE => keyboard_keydown(KeyboardInput::Escape),
         
-        VK_BACK => { handle_keyboard_keydown(KeyboardInputType::Back); update_window(h_wnd); },
-        VK_DELETE => { handle_keyboard_keydown(KeyboardInputType::Delete); update_window(h_wnd); },
-        VK_SHIFT => handle_keyboard_keydown(KeyboardInputType::Shift),
-        VK_CONTROL => handle_keyboard_keydown(KeyboardInputType::Ctrl),
-        VK_MENU => handle_keyboard_keydown(KeyboardInputType::Alt),
-        VK_CAPITAL => handle_keyboard_keydown(KeyboardInputType::CapsLock),
+        VK_BACK => keyboard_keydown(KeyboardInput::Back),
+        VK_DELETE => keyboard_keydown(KeyboardInput::Delete),
+        VK_SHIFT => keyboard_keydown(KeyboardInput::Shift),
+        VK_CONTROL => keyboard_keydown(KeyboardInput::Ctrl),
+        VK_MENU => keyboard_keydown(KeyboardInput::Alt),
+        VK_CAPITAL => keyboard_keydown(KeyboardInput::CapsLock),
         
-        VK_LEFT => { 
-            let modifiers = get_keyboard_input_modifiers();
-            handle_keyboard_keydown(KeyboardInputType::ArrowLeft(modifiers)); 
-            update_window(h_wnd); },
-        VK_UP => {
-            let modifiers = get_keyboard_input_modifiers();
-            handle_keyboard_keydown(KeyboardInputType::ArrowUp(modifiers)); },
-        VK_RIGHT => { 
-            let modifiers = get_keyboard_input_modifiers();
-            handle_keyboard_keydown(KeyboardInputType::ArrowRight(modifiers)); 
-            update_window(h_wnd); },
-        VK_DOWN => {
-            let modifiers = get_keyboard_input_modifiers();
-            handle_keyboard_keydown(KeyboardInputType::ArrowDown(modifiers)); },
+        VK_LEFT => keyboard_keydown(KeyboardInput::ArrowLeft(get_keyboard_modifiers())),
+        VK_UP => keyboard_keydown(KeyboardInput::ArrowUp(get_keyboard_modifiers())),
+        VK_RIGHT => keyboard_keydown(KeyboardInput::ArrowRight(get_keyboard_modifiers())),
+        VK_DOWN => keyboard_keydown(KeyboardInput::ArrowDown(get_keyboard_modifiers())),
+        VK_HOME => keyboard_keydown(KeyboardInput::Home(get_keyboard_modifiers())),
+        VK_END => keyboard_keydown(KeyboardInput::End(get_keyboard_modifiers())),
         _ => { DefWindowProcW(h_wnd, msg, w_param, l_param); }
     }
     0
@@ -399,7 +377,7 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, _msg: UINT, _w_param: WPARAM, l_para
         client_rect.right - 2, 
         client_rect.bottom - 2);
 
-    let (cursor, should_update_window) = handle_mouse_move(mouse_x, mouse_y);
+    let cursor = handle_mouse_move(mouse_x, mouse_y);
 
     if is_point_in_client_rect {
         crate::APPLICATION_STATE.cursor = cursor;
@@ -408,14 +386,10 @@ unsafe fn handle_wm_mouse_move(h_wnd: HWND, _msg: UINT, _w_param: WPARAM, l_para
         crate::APPLICATION_STATE.cursor = Cursor::NotSet;
     }
 
-    if should_update_window {
-        update_window(h_wnd);
-    }
-
     return 0;
 }
 
-unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_param: LPARAM) -> LRESULT {
+unsafe fn handle_wm_button_click(_h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     let mouse_x = GET_X_LPARAM(l_param);
     let mouse_y = GET_Y_LPARAM(l_param);
     match msg {
@@ -423,12 +397,16 @@ unsafe fn handle_wm_button_click(h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_par
         WM_LBUTTONUP => handle_left_mouse_button_up(mouse_x, mouse_y),
         _ => { }
     }
-    update_window(h_wnd);
     return 0;
 }
 
 fn handle_wm_paint(h_wnd: HWND) -> LRESULT {
     unsafe {
+        if crate::APPLICATION_STATE.needs_redraw {
+            crate::update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
+            crate::APPLICATION_STATE.needs_redraw = false;
+        }
+
         let mut ps =  mem::MaybeUninit::<PAINTSTRUCT>::zeroed().assume_init();
         let hdc = BeginPaint(h_wnd, &mut ps);
         let width = GLOBAL_BACK_BUFFER.data.width as i32;
@@ -557,8 +535,8 @@ unsafe fn convert_from_lpvoid_null_term_to_string(ptr: LPVOID, max_length: usize
     return result;
 }
 
-unsafe fn get_keyboard_input_modifiers() -> KeyboardInputModifiers {
-    KeyboardInputModifiers {
+unsafe fn get_keyboard_modifiers() -> KeyboardModifiers {
+    KeyboardModifiers {
         ctrl: (0 != GetAsyncKeyState(VK_CONTROL)),
         alt: (0 != GetAsyncKeyState(VK_MENU)),
         shift: (0 != GetAsyncKeyState(VK_SHIFT))
