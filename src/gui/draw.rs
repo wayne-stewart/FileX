@@ -25,6 +25,7 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
         height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
+        textbox.scroll_offset_x,
         style.text_color, style.highlight_color, style.text_highlight_color,
         style.horizontal_align,
         style.vertical_align,
@@ -47,6 +48,7 @@ pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue
         width - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right, 
         height - style.border_size.top - style.padding_size.top - style.border_size.bottom - style.padding_size.bottom, 
         &font, style.font_size, 
+        0, // scroll_offset_x
         style.text_color, style.highlight_color, style.text_highlight_color,
         style.horizontal_align,
         style.vertical_align,
@@ -102,7 +104,7 @@ fn alpha_blend_u8(c1: u8, c2 : u8, alpha: u8) -> u8 {
 
 fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     left: i32, top: i32, width: i32, height: i32, 
-    font: &fontdue::Font, font_size: f32, 
+    font: &fontdue::Font, font_size: f32, scroll_offset_x: i32,
     text_color: Color, highlight_color: Color, highlight_text_color: Color,
     horizontal_align: HorizontalAlign, vertical_align: VerticalAlign,
     cursor_index: usize, selection_index: usize, draw_cursor: bool) {
@@ -116,7 +118,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     let (_, text_width, _,_char_widths) = measure_string(&text, font, font_size);
     let h_align_offset = calculate_h_align_offset(width, text_width, horizontal_align);
     let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
-    let mut cursor_left = left + h_align_offset;
+    let mut cursor_left = left + h_align_offset + scroll_offset_x;
     let cursor_top = top + v_align_offset;
     let mut text_char_index = 0;
     let mut cursor_pos = cursor_left;
@@ -134,7 +136,13 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
             text_char_index >= selection_start &&
             text_char_index < selection_end {
             color = highlight_text_color;
-            fill_rect(buffer, cursor_left, cursor_top - 2, font_metrics.advance_width as i32, font_height + 4, highlight_color);
+            let sel_left = std::cmp::max(cursor_left, max_left);
+            let sel_width = font_metrics.advance_width as i32;
+            let sel_right = std::cmp::min(cursor_left + sel_width, max_right);
+            let sel_width = sel_right - sel_left;
+            if sel_width > 0 && sel_right > 0 {
+                fill_rect(buffer, sel_left, cursor_top - 2, sel_width, font_height + 4, highlight_color);                
+            }
         }
         for buffer_y in buffer_top..buffer_bottom {
             for buffer_x in buffer_left..buffer_right {
@@ -195,7 +203,7 @@ fn calculate_v_align_offset(container_height: i32, text_height: i32, align: Vert
 /*
     return a tuple of height, width, baseline
 */
-fn measure_string(text: &[char], font: &fontdue::Font, font_size: f32) -> (i32, i32, i32, Vec<i32>) {
+pub fn measure_string(text: &[char], font: &fontdue::Font, font_size: f32) -> (i32, i32, i32, Vec<i32>) {
     let mut height: i32 = 0;
     let mut width: i32 = 0;
     let mut ymin: i32 = 0;

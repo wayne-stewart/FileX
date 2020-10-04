@@ -75,7 +75,8 @@ fn main() {
             placeholder: "Username",
             bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
             hot: false, active: false, 
-            cursor_index: 0, selection_index: usize::MAX,
+            cursor_index: 0, scroll_offset_x: 0,
+            selection_index: usize::MAX,
             style: BoxStyle::textbox_default()
         });
 

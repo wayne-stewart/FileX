@@ -14,6 +14,7 @@ pub struct TextBox {
     pub hot: bool,
     pub active: bool,
     pub cursor_index: usize, // index of char
+    pub scroll_offset_x: i32,
     pub selection_index: usize,
     pub style: BoxStyle
 }
@@ -108,6 +109,18 @@ impl TextBox {
             self.cursor_index = self.text.len();
         }
         // calculate display offset to keep cursor in view
+        let font = unsafe { &crate::APPLICATION_STATE.fonts[0] };
+        let style = self.get_style();
+        let box_width = self.bounds.w - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right;
+        let (_, _text_width, _, char_widths) = crate::gui::draw::measure_string(&self.text, font, style.font_size);
+        let cursor_offset: i32 = char_widths[0..self.cursor_index].iter().sum();
+        let effective_cursor_offset = cursor_offset + self.scroll_offset_x;
+        if effective_cursor_offset > box_width {
+            self.scroll_offset_x = box_width - cursor_offset;
+        }
+        else if effective_cursor_offset < 0 {
+            self.scroll_offset_x = 0 - cursor_offset;
+        }
     }
 
     pub fn increment_cursor_index(&mut self) {
@@ -232,7 +245,8 @@ mod textbox_tests {
             placeholder: "placeholder",
             bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
             hot: false, active: false, 
-            cursor_index: 0, selection_index: usize::MAX,
+            cursor_index: 0, scroll_offset_x: 0,
+            selection_index: usize::MAX,
             style: BoxStyle::textbox_default()
         };
         x.set_text(TEXT);
