@@ -38,7 +38,7 @@ impl TextBox {
     // replaces all text in the control
     pub fn set_text(&mut self, text: &str) {
         self.text.clear();
-        self.cursor_index = 0;
+        self.set_cursor_index(0);
         self._insert_text(text);
     }
 
@@ -60,7 +60,7 @@ impl TextBox {
     fn _insert_text(&mut self, text: &str) {
         for c in text.chars() {
             self.text.insert(self.cursor_index, c);
-            self.cursor_index += 1;
+            self.increment_cursor_index();
         }
         self.selection_index = usize::MAX;
     }
@@ -85,7 +85,7 @@ impl TextBox {
             for _ in start..end {
                 self.text.remove(start);
             }
-            self.cursor_index = start;
+            self.set_cursor_index(start);
             self.selection_index = usize::MAX;
         }
     }
@@ -107,29 +107,25 @@ impl TextBox {
         if self.cursor_index > self.text.len() {
             self.cursor_index = self.text.len();
         }
+        // calculate display offset to keep cursor in view
     }
 
     pub fn increment_cursor_index(&mut self) {
-        self.cursor_index += 1;
-        // cursor is allowed to exceed text length by one
-        // indicating that the cursor is at the end of the string
-        if self.cursor_index >  self.text.len() {
-            self.cursor_index = self.text.len();
-        }
+        self.set_cursor_index(self.cursor_index + 1);
     }
 
     // returns true if cursor decremented, false if not
     pub fn decrement_cursor_index(&mut self) -> bool {
         if self.cursor_index > 0 {
-            self.cursor_index -= 1;
+            self.set_cursor_index(self.cursor_index - 1);
             return true;
         }
         return false;
     }
 
     pub fn select_all(&mut self) {
-        self.cursor_index = 0;
-        self.selection_index = self.text.len();
+        self.set_cursor_index(self.text.len());
+        self.selection_index = 0;
     }
 
     pub fn arrow_right(&mut self, modifiers: KeyboardModifiers) {
@@ -155,13 +151,13 @@ impl TextBox {
 
     pub fn home(&mut self, modifiers: KeyboardModifiers) {
         self.update_selection_index(modifiers);
-        self.cursor_index = 0;
+        self.set_cursor_index(0);
         crate::update_window();
     }
 
     pub fn end(&mut self, modifiers: KeyboardModifiers) {
         self.update_selection_index(modifiers);
-        self.cursor_index = self.text.len();
+        self.set_cursor_index(self.text.len());
         crate::update_window();
     }
 
@@ -211,7 +207,7 @@ impl TextBox {
                 break;
             }
         }
-        self.cursor_index = i as usize;
+        self.set_cursor_index(i as usize);
     }
 }
 
@@ -248,7 +244,7 @@ mod textbox_tests {
         let mut textbox = create_textbox_for_test();
 
         // delete single character at index 3 which should be the 4
-        textbox.cursor_index = 3;
+        textbox.set_cursor_index(3);
         textbox.delete();
         assert_eq!(textbox.cursor_index, 3);
         assert_eq!(textbox.selection_index, usize::MAX);
@@ -267,8 +263,8 @@ mod textbox_tests {
         let mut textbox = create_textbox_for_test();
         
         textbox.select_all();
-        assert_eq!(textbox.cursor_index, 0);
-        assert_eq!(textbox.selection_index, 10);
+        assert_eq!(textbox.cursor_index, 10);
+        assert_eq!(textbox.selection_index, 0);
         assert_eq!(textbox.get_text(), TEXT);
     }
 
@@ -276,14 +272,14 @@ mod textbox_tests {
     fn test_get_test_selection() {
         let mut textbox = create_textbox_for_test();
 
-        textbox.cursor_index = 2;
+        textbox.set_cursor_index(2);
         textbox.selection_index = 7;
         assert_eq!(textbox.get_text(), "34567");
         // makes ure get_text didn't modify the indexes
         assert_eq!(textbox.cursor_index, 2);
         assert_eq!(textbox.selection_index, 7);
         
-        textbox.cursor_index = 8;
+        textbox.set_cursor_index(8);
         textbox.selection_index = 1;
         assert_eq!(textbox.get_text(), "2345678");
     }

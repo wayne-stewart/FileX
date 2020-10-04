@@ -112,8 +112,8 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     let max_right = std::cmp::min(left + width, buffer.width);
     let max_top = std::cmp::max(top, 0);
     let max_left = std::cmp::max(left, 0);
-    let (font_height, _, _) = measure_string(&['W'], font, font_size);
-    let (_, text_width, _) = measure_string(&text, font, font_size);
+    let (font_height, _, _,_) = measure_string(&['W'], font, font_size);
+    let (_, text_width, _,_char_widths) = measure_string(&text, font, font_size);
     let h_align_offset = calculate_h_align_offset(width, text_width, horizontal_align);
     let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
     let mut cursor_left = left + h_align_offset;
@@ -195,20 +195,22 @@ fn calculate_v_align_offset(container_height: i32, text_height: i32, align: Vert
 /*
     return a tuple of height, width, baseline
 */
-fn measure_string(text: &[char], font: &fontdue::Font, font_size: f32) -> (i32, i32, i32) {
+fn measure_string(text: &[char], font: &fontdue::Font, font_size: f32) -> (i32, i32, i32, Vec<i32>) {
     let mut height: i32 = 0;
     let mut width: i32 = 0;
     let mut ymin: i32 = 0;
+    let mut char_widths: Vec<i32> = Vec::<i32>::with_capacity(text.len());
     for c in text {
         let m = font.metrics(*c, font_size);
         if height < m.height as i32 {
             height = m.height as i32;
         }
         width += m.advance_width as i32;
+        char_widths.push(m.advance_width as i32);
         if ymin > m.ymin {
             ymin = m.ymin;
         }
     }
-    (height, width, ymin)
+    (height, width, ymin, char_widths)
 }
 
