@@ -116,7 +116,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     let max_left = std::cmp::max(left, 0);
     let (font_height, _, _,_) = measure_string(&['W'], font, font_size);
     let (_, text_width, _,_char_widths) = measure_string(&text, font, font_size);
-    let h_align_offset = calculate_h_align_offset(width, text_width, horizontal_align);
+    let h_align_offset = calculate_h_align_offset(width, text_width, scroll_offset_x, horizontal_align);
     let v_align_offset = calculate_v_align_offset(height, font_height, vertical_align);
     let mut cursor_left = left + h_align_offset + scroll_offset_x;
     let cursor_top = top + v_align_offset;
@@ -176,12 +176,17 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     }
 }
 
-fn calculate_h_align_offset(container_width: i32, text_width: i32, align: HorizontalAlign) -> i32 {
+fn calculate_h_align_offset(container_width: i32, text_width: i32, scroll_offset_x: i32, align: HorizontalAlign) -> i32 {
     match align {
         HorizontalAlign::Left => 0,
         //HorizontalAlign::Right => left, // I don't need this one yet so I'll wait on the implementation
         HorizontalAlign::Center => {
-            (container_width / 2) - (text_width / 2)
+            if text_width > container_width {
+                0
+            }
+            else {
+                (container_width / 2) - (text_width / 2)
+            }
         }
     }
 }

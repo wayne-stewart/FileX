@@ -4,6 +4,7 @@ use crate::gui::style::BoxStyle;
 use crate::gui::Rect;
 use crate::gui::control::Control;
 use crate::gui::keyboard::KeyboardModifiers;
+use crate::gui::style::HorizontalAlign;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
@@ -112,15 +113,23 @@ impl TextBox {
         let font = unsafe { &crate::APPLICATION_STATE.fonts[0] };
         let style = self.get_style();
         let box_width = self.bounds.w - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right;
-        let (_, _text_width, _, char_widths) = crate::gui::draw::measure_string(&self.text, font, style.font_size);
+        let (_, text_width, _, char_widths) = crate::gui::draw::measure_string(&self.text, font, style.font_size);
         let cursor_offset: i32 = char_widths[0..self.cursor_index].iter().sum();
         let effective_cursor_offset = cursor_offset + self.scroll_offset_x;
+        let mut offset: i32 = self.scroll_offset_x;
         if effective_cursor_offset > box_width {
-            self.scroll_offset_x = box_width - cursor_offset;
+            offset = box_width - cursor_offset;
         }
         else if effective_cursor_offset < 0 {
-            self.scroll_offset_x = 0 - cursor_offset;
+            offset = 0 - cursor_offset;
+        };
+        if style.horizontal_align == HorizontalAlign::Center {
+            if text_width < box_width {
+                offset /= 2;
+            }
         }
+
+        self.scroll_offset_x = offset;
     }
 
     pub fn increment_cursor_index(&mut self) {

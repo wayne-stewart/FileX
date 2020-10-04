@@ -79,6 +79,7 @@ fn main() {
             selection_index: usize::MAX,
             style: BoxStyle::textbox_default()
         });
+        APPLICATION_STATE.textboxes[0].style.horizontal_align = crate::gui::style::HorizontalAlign::Center;
 
         APPLICATION_STATE.set_clipboard_text_data = Some(set_text_into_clipboard);
     }
