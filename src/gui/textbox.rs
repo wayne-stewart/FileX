@@ -255,10 +255,17 @@ mod textbox_tests {
     const TEXT: &str = "1234567890";
 
     fn create_textbox_for_test() -> TextBox {
+        if unsafe { crate::APPLICATION_STATE.fonts.len() } == 0 {
+            let font = include_bytes!("../../fonts/OpenSans-Regular.ttf") as &[u8];
+            let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
+            unsafe { crate::APPLICATION_STATE.fonts.push(font); }
+        }
+
         let mut x = TextBox {
             text: Vec::new(),
             placeholder: "placeholder",
-            bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
+            bounds: Bounds::int(10, 10, 500, 100),
+            bounds_rect: Rect {x:10, y:10, w: 500, h: 100},
             hot: false, active: false, 
             cursor_index: 0, scroll_offset_x: 0,
             selection_index: usize::MAX,

@@ -75,6 +75,15 @@ impl Bounds {
         }
     }
 
+    pub fn int(x: i32, y: i32, w: i32, h: i32) -> Bounds {
+        Bounds {
+            x: BoundsField::INT(x),
+            y: BoundsField::INT(y),
+            w: BoundsField::INT(w),
+            h: BoundsField::INT(h)
+        }
+    }
+
     pub fn variable_horizontal(x: f32, y: i32, w: f32, h: i32) -> Bounds {
         Bounds {
             x: BoundsField::FLOAT(x),
