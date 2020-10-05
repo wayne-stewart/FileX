@@ -1,7 +1,8 @@
+#![allow(unused_parens)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
 
 mod win32;
-
-
 mod gui;
 use self::gui::Cursor;
 use crate::gui::color::Color;
