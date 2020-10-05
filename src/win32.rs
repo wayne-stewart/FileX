@@ -477,6 +477,7 @@ fn resize_offscreen_buffer(buffer: &mut Win32PixelBuffer, width: i32, height: i3
     buffer.data.pixels = vec![crate::gui::Pixel::default(); pixel_size];
     buffer.data.width = width;
     buffer.data.height = height;
+    crate::handle_window_resize(width, height);
 }
 
 unsafe fn get_text_from_clipboard(h_wnd: HWND) -> Option<String> {

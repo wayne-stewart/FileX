@@ -11,13 +11,31 @@ use crate::gui::draw::fill_rect;
 use crate::gui::draw::draw_button;
 use crate::gui::draw::draw_textbox;
 use crate::gui::Rect;
+use crate::gui::Bounds;
 use crate::gui::style::BoxStyle;
+use crate::gui::style::BoxSize;
+use crate::gui::style::HorizontalAlign;
+use crate::gui::style::VerticalAlign;
 
 use crate::win32::platform_run;
 use crate::win32::set_text_into_clipboard;
 use crate::win32::invalidate_window;
 
 type SetClipBoardTextData = fn(&str) -> ();
+type THEME = crate::gui::color::DarkTheme;
+
+const FILE_PATH_BOX_STYLE: BoxStyle = BoxStyle {
+    border_color: Color::RED,
+    border_size: BoxSize::single(0),
+    padding_size: BoxSize { left:4, right:4, top:0, bottom:0 },
+    background_color: THEME::BACKGROUND_LIGHT,
+    text_color: THEME::TEXT,
+    highlight_color: THEME::HIGHLIGHT,
+    text_highlight_color: THEME::TEXT,
+    font_size: 20.0,
+    vertical_align: VerticalAlign::Center,
+    horizontal_align: HorizontalAlign::Left
+};
 
 struct ApplicationState {
     set_clipboard_text_data: Option<SetClipBoardTextData>,
@@ -45,44 +63,12 @@ fn button_on_click(button: &mut Button) {
 }
 
 fn main() {
-    let font = include_bytes!("../fonts/OpenSans-Regular.ttf") as &[u8];
-    let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
     unsafe {
-        APPLICATION_STATE.fonts.push(font);
-
-        APPLICATION_STATE.buttons.push(Button {
-            text: "Click Me!",
-            bounds: gui::Rect { x: 300, y: 300, w: 150, h: 50 },
-            hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click), 
-            style: BoxStyle::button_default(),
-            style_hot: BoxStyle::button_default_hot(),
-            style_active: BoxStyle::button_default_active()
-        });
-
-        APPLICATION_STATE.buttons.push(Button {
-            text: "BUY NOW",
-            bounds: Rect { x: 500, y: 300, w: 150, h: 50 },
-            hot: false, active: false, click_count: 0,
-            on_click: Some(button_on_click),
-            style: BoxStyle::button_default(),
-            style_hot: BoxStyle::button_default_hot(),
-            style_active: BoxStyle::button_default_active()
-        });
-
-        APPLICATION_STATE.textboxes.push(TextBox {
-            text: Vec::new(),
-            placeholder: "Username",
-            bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
-            hot: false, active: false, 
-            cursor_index: 0, scroll_offset_x: 0,
-            selection_index: usize::MAX,
-            style: BoxStyle::textbox_default()
-        });
-        APPLICATION_STATE.textboxes[0].style.horizontal_align = crate::gui::style::HorizontalAlign::Center;
-
         APPLICATION_STATE.set_clipboard_text_data = Some(set_text_into_clipboard);
     }
+
+    //init_test_view();
+    init_primary_view();
 
     platform_run();
 }
@@ -94,29 +80,119 @@ fn update_window() {
     }
 }
 
+pub fn handle_window_resize(width: i32, height: i32) {
+    unsafe {
+        for textbox in &mut APPLICATION_STATE.textboxes {
+            textbox.update_bounds_rect(width, height);
+        }
+    }
+}
+
+// fn init_test_view() {
+//     unsafe {
+//         let font = include_bytes!("../fonts/OpenSans-Regular.ttf") as &[u8];
+//         let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
+//         APPLICATION_STATE.fonts.push(font);
+
+//         APPLICATION_STATE.buttons.push(Button {
+//             text: "Click Me!",
+//             bounds: gui::Rect { x: 300, y: 300, w: 150, h: 50 },
+//             hot: false, active: false, click_count: 0,
+//             on_click: Some(button_on_click), 
+//             style: BoxStyle::button_default(),
+//             style_hot: BoxStyle::button_default_hot(),
+//             style_active: BoxStyle::button_default_active()
+//         });
+
+//         APPLICATION_STATE.buttons.push(Button {
+//             text: "BUY NOW",
+//             bounds: Rect { x: 500, y: 300, w: 150, h: 50 },
+//             hot: false, active: false, click_count: 0,
+//             on_click: Some(button_on_click),
+//             style: BoxStyle::button_default(),
+//             style_hot: BoxStyle::button_default_hot(),
+//             style_active: BoxStyle::button_default_active()
+//         });
+
+//         APPLICATION_STATE.textboxes.push(TextBox {
+//             text: Vec::new(),
+//             placeholder: "Username",
+//             bounds: Rect { x: 10, y: 10, w: 500, h: 100 },
+//             hot: false, active: false, 
+//             cursor_index: 0, scroll_offset_x: 0,
+//             selection_index: usize::MAX,
+//             style: BoxStyle::textbox_default()
+//         });
+//         //APPLICATION_STATE.textboxes[0].style.horizontal_align = crate::gui::style::HorizontalAlign::Center;
+//     }
+// }
+
+// fn update_back_buffer(mut buffer: &mut gui::PixelBuffer) {
+//     let width = buffer.width;
+//     let height = buffer.height;
+//     fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
+//     fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
+//     fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
+//     //fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
+//     fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
+//     fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
+
+//     let font = unsafe { &APPLICATION_STATE.fonts[0] };
+//     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
+//     let buttons = unsafe { &APPLICATION_STATE.buttons };
+
+//     for textbox in textboxes {
+//         draw_textbox(buffer, &textbox, &font);
+//     }
+
+//     for button in buttons {
+//         draw_button(buffer, &button, &font);
+//     }
+// }
+
+fn init_primary_view() {
+    unsafe {
+        let font = include_bytes!("../fonts/OpenSans-Regular.ttf") as &[u8];
+        let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();
+        APPLICATION_STATE.fonts.push(font);
+
+        APPLICATION_STATE.textboxes.push(TextBox {
+            text: Vec::new(),
+            placeholder: "",
+            bounds: Bounds::variable_horizontal(0.2, 0, 0.8, 30),
+            bounds_rect: Rect::default(),
+            hot: false, active: false, 
+            cursor_index: 0, scroll_offset_x: 0,
+            selection_index: usize::MAX,
+            style: FILE_PATH_BOX_STYLE
+        });
+    }
+}
+
 fn update_back_buffer(mut buffer: &mut gui::PixelBuffer) {
     let width = buffer.width;
     let height = buffer.height;
-    fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
-    fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
-    fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
-    //fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
-    fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
-    fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
+    fill_rect(&mut buffer, 0, 0, width / 5, height, THEME::BACKGROUND_LIGHT);
+    fill_rect(&mut buffer, width /5, 0, width * 4 / 5, height, THEME::BACKGROUND);
+    fill_rect(&mut buffer, width * 3 / 5, 0, 4, height, THEME::BACKGROUND_LIGHT);
+    // fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
+    // fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
+    // fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);
+    // //fill_rect(&mut buffer, 0, 0, 50, 50, Color::DARK_GRAY);
+    // fill_rect(&mut buffer, 0, height / 4 - 2, width, 4, Color::DARK_GRAY);
+    // fill_rect(&mut buffer, 0, height / 4 * 3 - 2, width, 4, Color::DARK_GRAY);
 
     let font = unsafe { &APPLICATION_STATE.fonts[0] };
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
-    let buttons = unsafe { &APPLICATION_STATE.buttons };
+    // let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
         draw_textbox(buffer, &textbox, &font);
     }
 
-    for button in buttons {
-        draw_button(buffer, &button, &font);
-    }
+    // for button in buttons {
+    //     draw_button(buffer, &button, &font);
+    // }
 }
-
-
 
 

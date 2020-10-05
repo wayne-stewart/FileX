@@ -12,12 +12,12 @@ use crate::gui::PixelBuffer;
 use crate::gui::Rect;
 
 pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font) {
-    let left = textbox.bounds.x;
-    let top = textbox.bounds.y;
-    let width = textbox.bounds.w;
-    let height = textbox.bounds.h;
+    let left = textbox.bounds_rect.x;
+    let top = textbox.bounds_rect.y;
+    let width = textbox.bounds_rect.w;
+    let height = textbox.bounds_rect.h;
     let style = textbox.get_style();
-    draw_border_box(&mut buffer, &textbox.bounds, &style);
+    draw_border_box(&mut buffer, &textbox.bounds_rect, &style);
     fill_text(&mut buffer, 
         &textbox.text, 
         left + style.border_size.left + style.padding_size.left, 
@@ -176,7 +176,7 @@ fn fill_text(buffer: &mut PixelBuffer, text: &Vec::<char>,
     }
 }
 
-fn calculate_h_align_offset(container_width: i32, text_width: i32, scroll_offset_x: i32, align: HorizontalAlign) -> i32 {
+fn calculate_h_align_offset(container_width: i32, text_width: i32, _scroll_offset_x: i32, align: HorizontalAlign) -> i32 {
     match align {
         HorizontalAlign::Left => 0,
         //HorizontalAlign::Right => left, // I don't need this one yet so I'll wait on the implementation

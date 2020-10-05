@@ -15,7 +15,7 @@ pub enum VerticalAlign {
     Top
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct BoxSize {
     pub left:i32,
     pub top:i32,
@@ -24,14 +24,14 @@ pub struct BoxSize {
 }
 
 impl BoxSize {
-    pub const fn default() -> BoxSize {
-        BoxSize {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0
-        }
-    }
+    // pub const fn default() -> BoxSize {
+    //     BoxSize {
+    //         left: 0,
+    //         top: 0,
+    //         right: 0,
+    //         bottom: 0
+    //     }
+    // }
     pub const fn single(s: i32) -> BoxSize {
         BoxSize {
             left: s,

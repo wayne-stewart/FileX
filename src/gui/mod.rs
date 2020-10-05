@@ -47,7 +47,43 @@ pub struct Rect {
     pub h:i32
 }
 
+impl Rect {
+    pub fn default() -> Rect { Rect { x:0, y: 0, w: 0, h: 0 } }
+}
 
+#[derive(Debug, Copy, Clone)]
+pub enum BoundsField {
+    INT(i32),
+    FLOAT(f32)
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Bounds {
+    pub x: BoundsField,
+    pub y: BoundsField,
+    pub w: BoundsField,
+    pub h: BoundsField
+}
+
+impl Bounds {
+    pub fn get_rect(&self, width: i32, height: i32) -> Rect {
+        Rect {
+            x: match self.x { BoundsField::INT(a) => a, BoundsField::FLOAT(a) => (a * width as f32) as i32 },
+            y: match self.y { BoundsField::INT(a) => a, BoundsField::FLOAT(a) => (a * height as f32) as i32 },
+            w: match self.w { BoundsField::INT(a) => a, BoundsField::FLOAT(a) => (a * width as f32) as i32 },
+            h: match self.h { BoundsField::INT(a) => a, BoundsField::FLOAT(a) => (a * height as f32) as i32 }
+        }
+    }
+
+    pub fn variable_horizontal(x: f32, y: i32, w: f32, h: i32) -> Bounds {
+        Bounds {
+            x: BoundsField::FLOAT(x),
+            y: BoundsField::INT(y),
+            w: BoundsField::FLOAT(w),
+            h: BoundsField::INT(h)
+        }
+    }
+}
 
 pub struct PixelBuffer {
     pub pixels: Vec<Pixel>,

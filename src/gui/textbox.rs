@@ -2,6 +2,7 @@
 use crate::gui::is_point_in_rect;
 use crate::gui::style::BoxStyle;
 use crate::gui::Rect;
+use crate::gui::Bounds;
 use crate::gui::control::Control;
 use crate::gui::keyboard::KeyboardModifiers;
 use crate::gui::style::HorizontalAlign;
@@ -11,7 +12,8 @@ use std::str::FromStr;
 pub struct TextBox {
     pub text: Vec::<char>,
     pub placeholder: &'static str,
-    pub bounds: Rect,
+    pub bounds: Bounds,
+    pub bounds_rect: Rect,
     pub hot: bool,
     pub active: bool,
     pub cursor_index: usize, // index of char
@@ -35,6 +37,10 @@ impl TextBox {
         }
 
         String::from_iter(&self.text[start..end])
+    }
+
+    pub fn update_bounds_rect(&mut self, width: i32, height: i32) {
+        self.bounds_rect = self.bounds.get_rect(width, height);
     }
 
     // replaces all text in the control
@@ -112,7 +118,7 @@ impl TextBox {
         // calculate display offset to keep cursor in view
         let font = unsafe { &crate::APPLICATION_STATE.fonts[0] };
         let style = self.get_style();
-        let box_width = self.bounds.w - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right;
+        let box_width = self.bounds_rect.w - style.border_size.left - style.padding_size.left - style.border_size.right - style.padding_size.right;
         let (_, text_width, _, char_widths) = crate::gui::draw::measure_string(&self.text, font, style.font_size);
         let cursor_offset: i32 = char_widths[0..self.cursor_index].iter().sum();
         let effective_cursor_offset = cursor_offset + self.scroll_offset_x;
@@ -234,7 +240,7 @@ impl TextBox {
 }
 
 impl Control for TextBox {
-    fn get_bounds(&self) -> Rect { self.bounds }
+    fn get_bounds(&self) -> Rect { self.bounds_rect }
     fn get_hot(&self) -> bool { self.hot }
     fn set_hot(&mut self, hit: bool) { self.hot = hit }
 
