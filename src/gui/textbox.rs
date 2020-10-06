@@ -77,7 +77,14 @@ impl TextBox {
         if self.cursor_index > self.text.len() {
             self.cursor_index = self.text.len();
         }
-        self.text.insert(self.cursor_index, c);
+        if self.selection_index == usize::MAX {
+            self.text.insert(self.cursor_index, c);
+        }
+        else {
+            self.delete();
+            self.text.insert(self.cursor_index, c);
+            self.selection_index = usize::MAX;
+        }
         self.increment_cursor_index();
     }
 
