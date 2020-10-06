@@ -11,7 +11,7 @@ use crate::gui::color::Color;
 use crate::gui::PixelBuffer;
 use crate::gui::Rect;
 
-pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font) {
+pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font, draw_cursor: bool) {
     let left = textbox.bounds_rect.x;
     let top = textbox.bounds_rect.y;
     let width = textbox.bounds_rect.w;
@@ -31,7 +31,7 @@ pub fn draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &font
         style.vertical_align,
         textbox.cursor_index,
         textbox.selection_index,
-        textbox.active);
+        draw_cursor);
 }
 
 pub fn draw_button(mut buffer: &mut PixelBuffer, button: &Button, font: &fontdue::Font) {

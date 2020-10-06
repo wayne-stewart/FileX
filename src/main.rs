@@ -87,12 +87,13 @@ fn main() {
     std::thread::spawn(move||{
         let mut b = false;
         loop {
-            thread::sleep(std::time::Duration::from_millis(500));
+            thread::sleep(std::time::Duration::from_millis(250));
             b = CURSOR_TOGGLE.swap(!b, Ordering::Relaxed);
             let textboxes = unsafe { &APPLICATION_STATE.textboxes };
             for textbox in textboxes {
                 if textbox.active {
-                    //crate::draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font)
+                    unsafe { crate::draw_textbox(&mut GLOBAL_BACK_BUFFER, textbox, &APPLICATION_STATE.fonts[0], b) };
+                    update_window();
                 }
             }
         }
@@ -203,6 +204,7 @@ fn init_primary_view() {
 
 fn update_back_buffer() {
     let buffer = unsafe { &mut GLOBAL_BACK_BUFFER };
+    let draw_cursor = CURSOR_TOGGLE.load(Ordering::Relaxed);
     let width = buffer.width;
     let height = buffer.height;
     fill_rect(buffer, 0, 0, width / 5, height, THEME::BACKGROUND_LIGHT);
@@ -220,7 +222,7 @@ fn update_back_buffer() {
     // let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
-        draw_textbox(buffer, &textbox, &font);
+        draw_textbox(buffer, &textbox, &font, textbox.active && draw_cursor);
     }
 
     // for button in buttons {

@@ -417,7 +417,7 @@ fn handle_wm_paint(h_wnd: HWND) -> LRESULT {
         // and doing other strange things when moving the window off screen.
         // drawing the entire backbuffer into the dc seems to work best.
         let pixels = &crate::GLOBAL_BACK_BUFFER.pixels;
-        let lines = StretchDIBits(
+        StretchDIBits(
             hdc, 
             0, 0, width, height, // destination
             0, 0, width, height, // source
@@ -425,7 +425,6 @@ fn handle_wm_paint(h_wnd: HWND) -> LRESULT {
             &WINDOW_BITMAP_INFO,
             DIB_RGB_COLORS,
             SRCCOPY);
-            println!("lines copied: {}", lines);
         EndPaint(h_wnd, &ps);
         return 0;
     }

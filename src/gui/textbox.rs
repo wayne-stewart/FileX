@@ -134,8 +134,8 @@ impl TextBox {
                 offset /= 2;
             }
         }
-
         self.scroll_offset_x = offset;
+        crate::CURSOR_TOGGLE.store(true, std::sync::atomic::Ordering::Relaxed);
     }
 
     pub fn increment_cursor_index(&mut self) {

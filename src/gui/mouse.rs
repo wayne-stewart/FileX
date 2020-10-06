@@ -11,6 +11,8 @@ pub fn handle_left_mouse_button_down(mouse_x: i32, mouse_y: i32) {
     for textbox in textboxes {
         textbox.left_mouse_button_down(mouse_x, mouse_y);
     }
+    crate::update_window();
+    crate::CURSOR_TOGGLE.store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
 pub fn handle_left_mouse_button_up(mouse_x: i32, mouse_y: i32) {
