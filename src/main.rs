@@ -2,6 +2,10 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool,Ordering};
+use std::thread;
+
 mod win32;
 mod gui;
 use self::gui::Cursor;
@@ -17,6 +21,7 @@ use crate::gui::style::BoxStyle;
 use crate::gui::style::BoxSize;
 use crate::gui::style::HorizontalAlign;
 use crate::gui::style::VerticalAlign;
+use crate::gui::PixelBuffer;
 
 use crate::win32::platform_run;
 use crate::win32::set_text_into_clipboard;
@@ -56,6 +61,14 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     textboxes: vec![]
 };
 
+static mut GLOBAL_BACK_BUFFER: PixelBuffer = PixelBuffer {
+    height: 0,
+    width: 0,
+    pixels: vec![]
+};
+
+static CURSOR_TOGGLE: AtomicBool = AtomicBool::new(true);
+
 fn button_on_click(button: &mut Button) {
     unsafe {
         button.click_count += 1;
@@ -71,6 +84,20 @@ fn main() {
     //init_test_view();
     init_primary_view();
 
+    std::thread::spawn(move||{
+        let mut b = false;
+        loop {
+            thread::sleep(std::time::Duration::from_millis(500));
+            b = CURSOR_TOGGLE.swap(!b, Ordering::Relaxed);
+            let textboxes = unsafe { &APPLICATION_STATE.textboxes };
+            for textbox in textboxes {
+                if textbox.active {
+                    //crate::draw_textbox(mut buffer: &mut PixelBuffer, textbox: &TextBox, font: &fontdue::Font)
+                }
+            }
+        }
+    });
+
     platform_run();
 }
 
@@ -81,8 +108,12 @@ fn update_window() {
     }
 }
 
-pub fn handle_window_resize(width: i32, height: i32) {
+fn handle_window_resize(width: i32, height: i32) {
     unsafe {
+        let pixel_size = (width * height) as usize;
+        GLOBAL_BACK_BUFFER.pixels = vec![crate::gui::Pixel::default(); pixel_size];
+        GLOBAL_BACK_BUFFER.width = width;
+        GLOBAL_BACK_BUFFER.height = height;
         for textbox in &mut APPLICATION_STATE.textboxes {
             textbox.update_bounds_rect(width, height);
         }
@@ -170,12 +201,13 @@ fn init_primary_view() {
     }
 }
 
-fn update_back_buffer(mut buffer: &mut gui::PixelBuffer) {
+fn update_back_buffer() {
+    let buffer = unsafe { &mut GLOBAL_BACK_BUFFER };
     let width = buffer.width;
     let height = buffer.height;
-    fill_rect(&mut buffer, 0, 0, width / 5, height, THEME::BACKGROUND_LIGHT);
-    fill_rect(&mut buffer, width /5, 0, width * 4 / 5, height, THEME::BACKGROUND);
-    fill_rect(&mut buffer, width * 3 / 5, 0, 4, height, THEME::BACKGROUND_LIGHT);
+    fill_rect(buffer, 0, 0, width / 5, height, THEME::BACKGROUND_LIGHT);
+    fill_rect(buffer, width /5, 0, width * 4 / 5, height, THEME::BACKGROUND);
+    fill_rect(buffer, width * 3 / 5, 0, 4, height, THEME::BACKGROUND_LIGHT);
     // fill_rect(&mut buffer, 0, 0, width, height, Color::LIGHT_GRAY);
     // fill_rect(&mut buffer, 0, height / 2 - 2, width, 4, Color::DARK_GRAY);
     // fill_rect(&mut buffer, width / 2 - 2, 0, 4, height, Color::DARK_GRAY);

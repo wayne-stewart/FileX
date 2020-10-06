@@ -187,10 +187,10 @@ struct Win32PixelBuffer {
     data: PixelBuffer
 }
 
+static mut WINDOW_BITMAP_INFO: BITMAPINFO = create_window_bitamp_info();
 static mut CURSOR_ARROW: HCURSOR = null_mut();
 static mut CURSOR_HAND: HCURSOR = null_mut();
 static mut CURSOR_IBEAM: HCURSOR = null_mut();
-static mut GLOBAL_BACK_BUFFER : Win32PixelBuffer = create_win32_compatible_pixel_buffer();
 static mut WINDOW_HANDLE: HWND = null_mut();
 
 pub fn platform_run() {
@@ -403,27 +403,29 @@ unsafe fn handle_wm_button_click(_h_wnd: HWND, msg: UINT, _w_param: WPARAM, l_pa
 fn handle_wm_paint(h_wnd: HWND) -> LRESULT {
     unsafe {
         if crate::APPLICATION_STATE.needs_redraw {
-            crate::update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
+            crate::update_back_buffer();
             crate::APPLICATION_STATE.needs_redraw = false;
         }
 
         let mut ps =  mem::MaybeUninit::<PAINTSTRUCT>::zeroed().assume_init();
         let hdc = BeginPaint(h_wnd, &mut ps);
-        let width = GLOBAL_BACK_BUFFER.data.width as i32;
-        let height = GLOBAL_BACK_BUFFER.data.height as i32;
+        let width = WINDOW_BITMAP_INFO.bmiHeader.biWidth;
+        let height = -WINDOW_BITMAP_INFO.bmiHeader.biHeight;
 
         // NOTE(wayne) I'm always drawing the entire screen instead of just the rect
         // provided by BeginPaint because StretchDIBits was inverting the image
         // and doing other strange things when moving the window off screen.
         // drawing the entire backbuffer into the dc seems to work best.
-        StretchDIBits(
+        let pixels = &crate::GLOBAL_BACK_BUFFER.pixels;
+        let lines = StretchDIBits(
             hdc, 
             0, 0, width, height, // destination
             0, 0, width, height, // source
-            GLOBAL_BACK_BUFFER.data.pixels.as_ptr() as *const c_void,
-            &GLOBAL_BACK_BUFFER.info,
+            pixels.as_ptr() as *const c_void,
+            &WINDOW_BITMAP_INFO,
             DIB_RGB_COLORS,
             SRCCOPY);
+            println!("lines copied: {}", lines);
         EndPaint(h_wnd, &ps);
         return 0;
     }
@@ -437,46 +439,36 @@ fn handle_wm_size(h_wnd: HWND) -> LRESULT {
         GetClientRect(h_wnd, &mut client_rect);
         let width = client_rect.right - client_rect.left;
         let height = client_rect.bottom - client_rect.top;
-        resize_offscreen_buffer(&mut GLOBAL_BACK_BUFFER, width, height);
-        update_back_buffer(&mut GLOBAL_BACK_BUFFER.data);
+        resize_offscreen_buffer(width, height);
+        update_back_buffer();
     }
     return 0;
 }
 
-const fn create_win32_compatible_pixel_buffer() -> Win32PixelBuffer {
+const fn create_window_bitamp_info() -> BITMAPINFO {
     let bit_count = 32;
-    Win32PixelBuffer {
-        info: BITMAPINFO { 
-            bmiHeader: BITMAPINFOHEADER { 
-                biSize: mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biHeight: 0,
-                biWidth: 0,
-                biPlanes: 1,
-                biBitCount: bit_count,
-                biCompression: BI_RGB,
-                biSizeImage: 0,
-                biXPelsPerMeter: 0,
-                biYPelsPerMeter: 0,
-                biClrUsed: 0,
-                biClrImportant: 0,
-            },
-            bmiColors: [RGBQUAD { rgbBlue: 0, rgbGreen: 0, rgbRed: 0, rgbReserved: 0 }]}
-        ,data: PixelBuffer {
-            pixels: Vec::new(),
-            width: 0,
-            height: 0
-        }
-    }
+    BITMAPINFO { 
+        bmiHeader: BITMAPINFOHEADER { 
+            biSize: mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biHeight: 0,
+            biWidth: 0,
+            biPlanes: 1,
+            biBitCount: bit_count,
+            biCompression: BI_RGB,
+            biSizeImage: 0,
+            biXPelsPerMeter: 0,
+            biYPelsPerMeter: 0,
+            biClrUsed: 0,
+            biClrImportant: 0,
+        },
+        bmiColors: [RGBQUAD { rgbBlue: 0, rgbGreen: 0, rgbRed: 0, rgbReserved: 0 }]}
 }
 
-fn resize_offscreen_buffer(buffer: &mut Win32PixelBuffer, width: i32, height: i32) {
-    buffer.info.bmiHeader.biWidth = width;
-    buffer.info.bmiHeader.biHeight = -height; // negative means top down DIB
-
-    let pixel_size = (width * height) as usize;
-    buffer.data.pixels = vec![crate::gui::Pixel::default(); pixel_size];
-    buffer.data.width = width;
-    buffer.data.height = height;
+fn resize_offscreen_buffer(width: i32, height: i32) {
+    unsafe {
+        WINDOW_BITMAP_INFO.bmiHeader.biWidth = width;
+        WINDOW_BITMAP_INFO.bmiHeader.biHeight = -height; // negative means top down DIB
+    }
     crate::handle_window_resize(width, height);
 }
 
