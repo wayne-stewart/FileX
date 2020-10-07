@@ -26,6 +26,7 @@ use crate::gui::PixelBuffer;
 use crate::win32::platform_run;
 use crate::win32::set_text_into_clipboard;
 use crate::win32::invalidate_window;
+use crate::win32::send_cursor_timer_tick;
 
 type SetClipBoardTextData = fn(&str) -> ();
 type THEME = crate::gui::color::DarkTheme;
@@ -89,17 +90,22 @@ fn main() {
         loop {
             thread::sleep(std::time::Duration::from_millis(250));
             b = CURSOR_TOGGLE.swap(!b, Ordering::Relaxed);
-            let textboxes = unsafe { &APPLICATION_STATE.textboxes };
-            for textbox in textboxes {
-                if textbox.active {
-                    unsafe { crate::draw_textbox(&mut GLOBAL_BACK_BUFFER, textbox, &APPLICATION_STATE.fonts[0], b) };
-                    update_window();
-                }
-            }
+            send_cursor_timer_tick();
         }
     });
 
     platform_run();
+}
+
+fn cursor_timer_tick() {
+    let textboxes = unsafe { &APPLICATION_STATE.textboxes };
+    for textbox in textboxes {
+        if textbox.active {
+            let toggle = CURSOR_TOGGLE.load(Ordering::Relaxed);
+            unsafe { crate::draw_textbox(&mut GLOBAL_BACK_BUFFER, textbox, &APPLICATION_STATE.fonts[0], toggle) };
+            update_window();
+        }
+    }
 }
 
 fn update_window() {

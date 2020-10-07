@@ -15,6 +15,7 @@ use crate::gui::mouse::handle_left_mouse_button_down;
 use crate::gui::mouse::handle_left_mouse_button_up;
 use crate::gui::keyboard::keyboard_keydown;
 use crate::update_back_buffer;
+use crate::cursor_timer_tick;
 use crate::gui::mouse::handle_mouse_move;
 
 use std::ffi::OsStr;
@@ -117,10 +118,12 @@ use self::winapi::um::winuser::{
     GetMessageW,
     DefWindowProcW,
     PostQuitMessage,
+    PostMessageW,
     GetAsyncKeyState,
     MSG,
 
     // Message Constants
+    WM_USER,
     WM_CREATE,
     WM_DESTROY,
     WM_PAINT,
@@ -192,6 +195,8 @@ static mut CURSOR_ARROW: HCURSOR = null_mut();
 static mut CURSOR_HAND: HCURSOR = null_mut();
 static mut CURSOR_IBEAM: HCURSOR = null_mut();
 static mut WINDOW_HANDLE: HWND = null_mut();
+
+const WM_USER_CURSOR_TIMER_TICK: UINT = WM_USER + 101;
 
 pub fn platform_run() {
     unsafe {
@@ -269,8 +274,13 @@ unsafe extern "system" fn win32_wnd_proc(h_wnd: HWND, msg: UINT, w_param: WPARAM
         WM_DESTROY => { PostQuitMessage(0); 0 },
         WM_PAINT => handle_wm_paint(h_wnd),
         WM_SIZE => handle_wm_size(h_wnd),
+        WM_USER_CURSOR_TIMER_TICK => { cursor_timer_tick(); 0 },
         _ => DefWindowProcW(h_wnd, msg, w_param, l_param)
     }
+}
+
+pub fn send_cursor_timer_tick() {
+    unsafe { PostMessageW(WINDOW_HANDLE, WM_USER_CURSOR_TIMER_TICK, 0, 0) };
 }
 
 pub fn invalidate_window() {
