@@ -12,6 +12,7 @@ use self::gui::Cursor;
 use crate::gui::color::Color;
 use crate::gui::textbox::TextBox;
 use crate::gui::button::Button;
+use crate::gui::view::View;
 use crate::gui::draw::fill_rect;
 use crate::gui::draw::draw_button;
 use crate::gui::draw::draw_textbox;
@@ -50,7 +51,8 @@ struct ApplicationState {
     cursor: Cursor,
     fonts: Vec::<fontdue::Font>,
     buttons: Vec::<Button>,
-    textboxes: Vec::<TextBox>
+    textboxes: Vec::<TextBox>,
+    primary_view: Option<View>
 }
 
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
@@ -59,7 +61,8 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     cursor: gui::Cursor::NotSet,
     fonts: vec![],
     buttons: vec![],
-    textboxes: vec![]
+    textboxes: vec![],
+    primary_view: None
 };
 
 static mut GLOBAL_BACK_BUFFER: PixelBuffer = PixelBuffer {
@@ -123,6 +126,12 @@ fn handle_window_resize(width: i32, height: i32) {
         GLOBAL_BACK_BUFFER.height = height;
         for textbox in &mut APPLICATION_STATE.textboxes {
             textbox.update_bounds_rect(width, height);
+        }
+        match &mut APPLICATION_STATE.primary_view {
+            None => { },
+            Some(view) => {
+                view.update_bounds_rect(width, height);
+            }
         }
     }
 }
@@ -205,6 +214,11 @@ fn init_primary_view() {
             selection_index: usize::MAX,
             style: FILE_PATH_BOX_STYLE
         });
+
+        let mut primary_view = View::default();
+        primary_view.bounds = Bounds::int(200, 200, 100, 100);
+
+        APPLICATION_STATE.primary_view = Some(primary_view);
     }
 }
 
@@ -225,15 +239,28 @@ fn update_back_buffer() {
 
     let font = unsafe { &APPLICATION_STATE.fonts[0] };
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
+    let view = unsafe { &APPLICATION_STATE.primary_view };
     // let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
         draw_textbox(buffer, &textbox, &font, textbox.active && draw_cursor);
     }
 
+    match view {
+        None => { },
+        Some(view) => {
+            draw_view(buffer, &view);
+        }
+    }
+
     // for button in buttons {
     //     draw_button(buffer, &button, &font);
     // }
+}
+
+fn draw_view(buffer: &mut PixelBuffer, view: &View) {
+    let bounds = view.bounds_rect;
+    fill_rect(buffer, bounds.x, bounds.y, bounds.w, bounds.h, view.style.background_color);
 }
 
 

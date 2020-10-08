@@ -8,11 +8,19 @@ pub enum HorizontalAlign {
     Center
 }
 
+impl Default for HorizontalAlign {
+    fn default() -> HorizontalAlign { HorizontalAlign::Left }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum VerticalAlign {
     Center,
     Bottom,
     Top
+}
+
+impl Default for VerticalAlign {
+    fn default() -> VerticalAlign { VerticalAlign::Center }
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -24,14 +32,6 @@ pub struct BoxSize {
 }
 
 impl BoxSize {
-    // pub const fn default() -> BoxSize {
-    //     BoxSize {
-    //         left: 0,
-    //         top: 0,
-    //         right: 0,
-    //         bottom: 0
-    //     }
-    // }
     pub const fn single(s: i32) -> BoxSize {
         BoxSize {
             left: s,
@@ -42,7 +42,7 @@ impl BoxSize {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct BoxStyle {
     pub border_color: Color,
     pub border_size: BoxSize,

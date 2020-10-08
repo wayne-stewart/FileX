@@ -10,6 +10,7 @@ pub mod control;
 pub mod keyboard;
 pub mod mouse;
 pub mod style;
+pub mod view;
 
 pub enum Cursor {
     NotSet,
@@ -39,7 +40,7 @@ impl Pixel {
 }
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub struct Rect {
     pub x:i32,
     pub y:i32,
@@ -47,9 +48,9 @@ pub struct Rect {
     pub h:i32
 }
 
-impl Rect {
-    pub fn default() -> Rect { Rect { x:0, y: 0, w: 0, h: 0 } }
-}
+// impl Rect {
+//     pub fn default() -> Rect { Rect { x:0, y: 0, w: 0, h: 0 } }
+// }
 
 #[derive(Debug, Copy, Clone)]
 pub enum BoundsField {
@@ -57,7 +58,11 @@ pub enum BoundsField {
     FLOAT(f32)
 }
 
-#[derive(Debug, Copy, Clone)]
+impl Default for BoundsField {
+    fn default() -> BoundsField { BoundsField::INT(0) }
+}
+
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Bounds {
     pub x: BoundsField,
     pub y: BoundsField,
@@ -112,13 +117,4 @@ pub fn is_point_in_rect(x: i32, y: i32, bounds: Rect) -> bool {
     is_point_in_rect_a(x,y,bounds.x,bounds.y,right,bottom)
 }
 
-
-
-
-// fn choose<T>(cmp: bool, option1: T, option2: T) -> T {
-//     match cmp {
-//         true => option1,
-//         false => option2
-//     }
-// }
 

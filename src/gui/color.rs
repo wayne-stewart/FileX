@@ -1,6 +1,6 @@
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Color {
     pub red : u8,
     pub green: u8,
