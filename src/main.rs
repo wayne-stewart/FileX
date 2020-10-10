@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool,Ordering};
 use std::thread;
+use std::cell::{RefCell, RefMut};
 
 mod win32;
 mod gui;
@@ -13,6 +14,7 @@ use crate::gui::color::Color;
 use crate::gui::textbox::TextBox;
 use crate::gui::button::Button;
 use crate::gui::view::View;
+use crate::gui::view::ViewBehavior;
 use crate::gui::draw::fill_rect;
 use crate::gui::draw::draw_button;
 use crate::gui::draw::draw_textbox;
@@ -51,8 +53,7 @@ struct ApplicationState {
     cursor: Cursor,
     fonts: Vec::<fontdue::Font>,
     buttons: Vec::<Button>,
-    textboxes: Vec::<TextBox>,
-    primary_view: Option<View>
+    textboxes: Vec::<TextBox>
 }
 
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
@@ -61,9 +62,10 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     cursor: gui::Cursor::NotSet,
     fonts: vec![],
     buttons: vec![],
-    textboxes: vec![],
-    primary_view: None
+    textboxes: vec![]
 };
+
+static mut views: Vec::<View> = vec![];
 
 static mut GLOBAL_BACK_BUFFER: PixelBuffer = PixelBuffer {
     height: 0,
@@ -88,7 +90,7 @@ fn main() {
     //init_test_view();
     init_primary_view();
 
-    std::thread::spawn(move||{
+    std::thread::spawn(||{
         let mut b = false;
         loop {
             thread::sleep(std::time::Duration::from_millis(250));
@@ -127,12 +129,7 @@ fn handle_window_resize(width: i32, height: i32) {
         for textbox in &mut APPLICATION_STATE.textboxes {
             textbox.update_bounds_rect(width, height);
         }
-        match &mut APPLICATION_STATE.primary_view {
-            None => { },
-            Some(view) => {
-                view.update_bounds_rect(width, height);
-            }
-        }
+        views[0].update_bounds_rect(width, height);
     }
 }
 
@@ -215,10 +212,23 @@ fn init_primary_view() {
             style: FILE_PATH_BOX_STYLE
         });
 
-        let mut primary_view = View::default();
-        primary_view.bounds = Bounds::int(200, 200, 100, 100);
+        let mut view = View::default();
+        view.bounds = Bounds::int(200, 200, 100, 100);
+        view.behavior = ViewBehavior::Button;
+        view.style = BoxStyle {
+                background_color: THEME::TAB_INACTIVE,
+                ..Default::default()
+        };
+        view.style_hot = BoxStyle {
+                background_color: THEME::TAB_ACTIVE,
+                ..Default::default()
+            };
+        view.style_active = BoxStyle {
+                background_color: THEME::HIGHLIGHT,
+                ..Default::default()
+            };
 
-        APPLICATION_STATE.primary_view = Some(primary_view);
+        views.push(view);
     }
 }
 
@@ -239,19 +249,14 @@ fn update_back_buffer() {
 
     let font = unsafe { &APPLICATION_STATE.fonts[0] };
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
-    let view = unsafe { &APPLICATION_STATE.primary_view };
+    let view = unsafe { &views[0] };
     // let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
         draw_textbox(buffer, &textbox, &font, textbox.active && draw_cursor);
     }
 
-    match view {
-        None => { },
-        Some(view) => {
-            draw_view(buffer, &view);
-        }
-    }
+    draw_view(buffer, &view);
 
     // for button in buttons {
     //     draw_button(buffer, &button, &font);
@@ -260,7 +265,8 @@ fn update_back_buffer() {
 
 fn draw_view(buffer: &mut PixelBuffer, view: &View) {
     let bounds = view.bounds_rect;
-    fill_rect(buffer, bounds.x, bounds.y, bounds.w, bounds.h, view.style.background_color);
+    let style = *view.get_style();
+    fill_rect(buffer, bounds.x, bounds.y, bounds.w, bounds.h, style.background_color);
 }
 
 

@@ -4,10 +4,11 @@ use crate::gui::Rect;
 use crate::gui::Bounds;
 use crate::gui::style::BoxStyle;
 use crate::gui::control::Control;
+use std::cell::RefCell;
 
 pub enum ViewBehavior {
     None,
-    Button(ButtonBehavior)
+    Button
 }
 
 impl Default for ViewBehavior {
@@ -21,7 +22,7 @@ pub enum ViewContent {
     VerticalStack(Vec::<View>),
 }
 
-impl Default for ViewContent {
+impl<'a> Default for ViewContent {
     fn default() -> ViewContent { ViewContent::None }
 }
 
@@ -30,20 +31,7 @@ pub struct View {
     pub content: ViewContent,
     pub behavior: ViewBehavior,
     pub bounds: Bounds,
-    pub style: BoxStyle,
     pub bounds_rect: Rect,
-}
-
-impl View {
-    pub fn update_bounds_rect(&mut self, width: i32, height: i32) {
-        self.bounds_rect = self.bounds.get_rect(width, height);
-    }
-}
-
-type ButtonClick = fn(&mut ButtonBehavior) -> ();
-
-#[derive(Default)]
-pub struct ButtonBehavior {
     pub hot: bool,
     pub active: bool,
     pub on_click: Option<ButtonClick>,
@@ -53,7 +41,13 @@ pub struct ButtonBehavior {
     pub style_active: BoxStyle
 }
 
-impl ButtonBehavior {
+// all methods implemented here will need to be recursive
+// to call into child views
+impl View {
+    pub fn update_bounds_rect(&mut self, width: i32, height: i32) {
+        self.bounds_rect = self.bounds.get_rect(width, height);
+    }
+
     pub fn left_mouse_button_down(&mut self, view: &View, mouse_x: i32, mouse_y: i32) {
         let hit = is_point_in_rect(mouse_x, mouse_y, view.bounds_rect);
         self.hot = hit;
@@ -74,7 +68,15 @@ impl ButtonBehavior {
         self.active = false;
     }
 
-    fn get_style<'a>(&'a self) -> &'a BoxStyle {
+    pub fn mouse_move(&mut self, mouse_x: i32, mouse_y: i32) {
+        let hit = is_point_in_rect(mouse_x, mouse_y, self.bounds_rect);
+        if self.hot != hit {
+            crate::update_window();
+            self.hot = hit;
+        }
+    }
+
+    pub fn get_style<'a>(&'a self) -> &'a BoxStyle {
         if self.active {
             &self.style_active
         }
@@ -86,3 +88,5 @@ impl ButtonBehavior {
         }
     }
 }
+
+type ButtonClick = fn(&mut View) -> ();
