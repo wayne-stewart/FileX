@@ -10,7 +10,7 @@ pub mod control;
 pub mod keyboard;
 pub mod mouse;
 pub mod style;
-pub mod view;
+//pub mod view;
 
 pub enum Cursor {
     NotSet,

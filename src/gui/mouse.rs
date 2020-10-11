@@ -1,7 +1,7 @@
 
 use crate::gui::Cursor;
 use crate::gui::control::Control;
-use crate::gui::view::ViewBehavior;
+//use crate::gui::view::ViewBehavior;
 
 pub fn handle_left_mouse_button_down(mouse_x: i32, mouse_y: i32) {
     let buttons = unsafe { &mut crate::APPLICATION_STATE.buttons };
@@ -46,15 +46,15 @@ pub fn handle_mouse_move(mouse_x: i32, mouse_y: i32) -> Cursor {
         if is_hot { is_textbox_hot = true }
     }
 
-    let views =  unsafe { &mut crate::views };
-    for view in views {
-        match view.behavior {
-            ViewBehavior::None => { },
-            ViewBehavior::Button => { 
-                view.mouse_move(mouse_x, mouse_y);
-            }
-        }
-    }
+    // let views =  unsafe { &mut crate::views };
+    // for view in views {
+    //     match view.behavior {
+    //         ViewBehavior::None => { },
+    //         ViewBehavior::Button => { 
+    //             view.mouse_move(mouse_x, mouse_y);
+    //         }
+    //     }
+    // }
 
 
     if is_button_hot { 

@@ -1,4 +1,19 @@
 
+/*
+    this file is currently not used. it was an experiment to try creating views
+    that represented the controls like text box and button and could also be
+    nested. I wanted to use enums to dynamically apply behavior but I needed
+    the behaviors from the enum to be mutable references which rust does not
+    seem to allow.
+
+    I changed the code to try putting all properties and functions on the view
+    itself which is what it's current state is. I don't like this approach.
+    while it worked for buttons, doing this for textbox would have been too much
+    in my opinion and those two controls are just the tip of the iceberg for
+    what I want to implement. I don't like the idea of one master control to
+    rule them all.
+*/
+
 use crate::gui::is_point_in_rect;
 use crate::gui::Rect;
 use crate::gui::Bounds;

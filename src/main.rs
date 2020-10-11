@@ -13,8 +13,8 @@ use self::gui::Cursor;
 use crate::gui::color::Color;
 use crate::gui::textbox::TextBox;
 use crate::gui::button::Button;
-use crate::gui::view::View;
-use crate::gui::view::ViewBehavior;
+// use crate::gui::view::View;
+// use crate::gui::view::ViewBehavior;
 use crate::gui::draw::fill_rect;
 use crate::gui::draw::draw_button;
 use crate::gui::draw::draw_textbox;
@@ -56,6 +56,10 @@ struct ApplicationState {
     textboxes: Vec::<TextBox>
 }
 
+struct View {
+
+}
+
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     set_clipboard_text_data: None,
     needs_redraw: true,
@@ -65,7 +69,7 @@ static mut APPLICATION_STATE : ApplicationState = ApplicationState {
     textboxes: vec![]
 };
 
-static mut views: Vec::<View> = vec![];
+static mut VIEWS: Vec::<View> = vec![];
 
 static mut GLOBAL_BACK_BUFFER: PixelBuffer = PixelBuffer {
     height: 0,
@@ -129,7 +133,7 @@ fn handle_window_resize(width: i32, height: i32) {
         for textbox in &mut APPLICATION_STATE.textboxes {
             textbox.update_bounds_rect(width, height);
         }
-        views[0].update_bounds_rect(width, height);
+        //views[0].update_bounds_rect(width, height);
     }
 }
 
@@ -212,23 +216,23 @@ fn init_primary_view() {
             style: FILE_PATH_BOX_STYLE
         });
 
-        let mut view = View::default();
-        view.bounds = Bounds::int(200, 200, 100, 100);
-        view.behavior = ViewBehavior::Button;
-        view.style = BoxStyle {
-                background_color: THEME::TAB_INACTIVE,
-                ..Default::default()
-        };
-        view.style_hot = BoxStyle {
-                background_color: THEME::TAB_ACTIVE,
-                ..Default::default()
-            };
-        view.style_active = BoxStyle {
-                background_color: THEME::HIGHLIGHT,
-                ..Default::default()
-            };
+        // let mut view = View::default();
+        // view.bounds = Bounds::int(200, 200, 100, 100);
+        // view.behavior = ViewBehavior::Button;
+        // view.style = BoxStyle {
+        //         background_color: THEME::TAB_INACTIVE,
+        //         ..Default::default()
+        // };
+        // view.style_hot = BoxStyle {
+        //         background_color: THEME::TAB_ACTIVE,
+        //         ..Default::default()
+        //     };
+        // view.style_active = BoxStyle {
+        //         background_color: THEME::HIGHLIGHT,
+        //         ..Default::default()
+        //     };
 
-        views.push(view);
+        // views.push(view);
     }
 }
 
@@ -249,24 +253,24 @@ fn update_back_buffer() {
 
     let font = unsafe { &APPLICATION_STATE.fonts[0] };
     let textboxes = unsafe { &APPLICATION_STATE.textboxes };
-    let view = unsafe { &views[0] };
+    //let view = unsafe { &views[0] };
     // let buttons = unsafe { &APPLICATION_STATE.buttons };
 
     for textbox in textboxes {
         draw_textbox(buffer, &textbox, &font, textbox.active && draw_cursor);
     }
 
-    draw_view(buffer, &view);
+    //draw_view(buffer, &view);
 
     // for button in buttons {
     //     draw_button(buffer, &button, &font);
     // }
 }
 
-fn draw_view(buffer: &mut PixelBuffer, view: &View) {
-    let bounds = view.bounds_rect;
-    let style = *view.get_style();
-    fill_rect(buffer, bounds.x, bounds.y, bounds.w, bounds.h, style.background_color);
-}
+// fn draw_view(buffer: &mut PixelBuffer, view: &View) {
+//     let bounds = view.bounds_rect;
+//     let style = *view.get_style();
+//     fill_rect(buffer, bounds.x, bounds.y, bounds.w, bounds.h, style.background_color);
+// }
 
 
