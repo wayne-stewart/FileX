@@ -57,7 +57,10 @@ struct ApplicationState {
 }
 
 struct View {
-
+    active: bool,
+    subviews: Vec::<View>,
+    buttons: Vec::<Button>,
+    textboxes: Vec::<TextBox>
 }
 
 static mut APPLICATION_STATE : ApplicationState = ApplicationState {
